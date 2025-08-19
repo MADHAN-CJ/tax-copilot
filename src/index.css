@@ -1,0 +1,38 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* PDF.js styles */
+.react-pdf__Page {
+  margin: 0 auto;
+  display: block !important;
+}
+
+.react-pdf__Page__canvas {
+  max-width: 100% !important;
+  height: auto !important;
+  display: block !important;
+}
+
+.react-pdf__Document {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Hide text and annotation layers to reduce console errors */
+.react-pdf__Page__textContent,
+.react-pdf__Page__annotations {
+  display: none !important;
+}
+
+/* Smooth scrolling for PDF container */
+.pdf-container {
+  scroll-behavior: smooth;
+}
+
+/* Page scroll anchoring */
+#page-1, #page-2, #page-3, #page-4, #page-5, #page-6, #page-7, #page-8, #page-9, #page-10,
+[id^="page-"] {
+  scroll-margin-top: 80px;
+}
