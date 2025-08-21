@@ -1,9 +1,7 @@
-import PDFViewerPage from './components/PDFViewerPage';
+import WsPDFViewerPage from "./components/WSPDFViewerPage";
 
 function App() {
-  return (
-    <PDFViewerPage />
-  );
+  return <WsPDFViewerPage />;
 }
 
 export default App;
