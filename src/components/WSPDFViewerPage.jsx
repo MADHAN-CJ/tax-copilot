@@ -43,9 +43,11 @@ export default function PDFViewerPage() {
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef(null);
   // WebSocket
-  const { sendMessage, messages: wsMessages } = useWebSocket(
-    "wss://api.bookshelf.diy/retrieve/ws"
-  );
+  const {
+    sendMessage,
+    messages: wsMessages,
+    reconnect,
+  } = useWebSocket("wss://api.bookshelf.diy/retrieve/ws");
 
   // Get current active document
   const getCurrentDocument = () => {
@@ -405,6 +407,8 @@ export default function PDFViewerPage() {
     }
   }, [messages]);
 
+  // useEffect()
+
   return (
     <div className="h-screen bg-[#151415]  flex flex-col overflow-hidden">
       <div className="overflow-hidden bg-[#151415]">
@@ -419,6 +423,11 @@ export default function PDFViewerPage() {
         </StylesLandingPageHeader>
         {activeDocuments.length === 0 && messages.length === 0 ? (
           <div className="w-full  ">
+            <p>
+              {messages?.type === "error" && (
+                <span className="text-white text-3xl z-50">Error</span>
+              )}
+            </p>
             <StylesLandingPageWrapper>
               <StylesLandingPageBodyWrapper>
                 <div className="section left-part">
@@ -477,193 +486,201 @@ export default function PDFViewerPage() {
           </div>
         ) : (
           <div className="flex flex-1 h-[calc(100vh-60px)] bg-[#151415]">
-            <div
-              className=" flex flex-col"
-              style={{
-                width: `calc(100% - ${sidebarWidth}px)`,
-                transition: "none",
-              }}
-            >
-              {/* Document Tabs */}
-              {activeDocuments.length > 0 && (
-                <div className=" px-6 bg-[#1C1B1D]flex-shrink-0">
-                  <div className="flex space-x-1 overflow-x-auto">
-                    {activeDocuments.map((doc, index) => (
-                      <button
-                        key={doc.id}
-                        onClick={() => setActiveTabIndex(index)}
-                        className={`px-3 py-2 text-sm font-medium rounded-t-md whitespace-nowrap transition-colors ${
-                          index === activeTabIndex
-                            ? "bg-white text-black border-b-2 border-[#333234]"
-                            : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-                        }`}
-                      >
-                        {doc.name.replace(".pdf", "")}
-                        {activeDocuments.length > 1 && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const docToClose = activeDocuments[index];
-
-                              // Remove document state when closing
-                              setDocumentStates((prev) => {
-                                const newStates = { ...prev };
-                                delete newStates[docToClose.id];
-                                return newStates;
-                              });
-
-                              const newDocs = activeDocuments.filter(
-                                (_, i) => i !== index
-                              );
-                              setActiveDocuments(newDocs);
-
-                              if (activeTabIndex >= newDocs.length) {
-                                setActiveTabIndex(
-                                  Math.max(0, newDocs.length - 1)
-                                );
-                              }
-                            }}
-                            className="ml-2 text-gray-400 hover:text-gray-600"
-                          >
-                            ×
-                          </button>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div className=" px-6 py-4 flex items-center gap-6 bg-[#333234] flex-shrink-0 mx-[20px] rounded-t">
-                <div className="flex items-center gap-2">
-                  <ChevronUp
-                    className="w-4 h-4 text-white cursor-pointer hover:text-gray-700"
-                    onClick={() =>
-                      goToPage(getCurrentDocumentState().currentPageInView - 1)
-                    }
-                  />
-                  <span className="text-sm font-medium text-white min-w-[20px] text-center">
-                    {getCurrentDocumentState().currentPageInView}
-                  </span>
-                  <span className="text-sm text-white">/</span>
-                  <span className="text-sm text-white">
-                    {getCurrentDocumentState().numPages || "..."}
-                  </span>
-                  <ChevronDown
-                    className="w-4 h-4 text-white cursor-pointer hover:text-gray-700"
-                    onClick={() =>
-                      goToPage(getCurrentDocumentState().currentPageInView + 1)
-                    }
-                  />
-                </div>
-              </div>
-
+            {activeDocuments.length > 0 && (
               <div
-                className="flex-1 bg-[#1C1B1D] overflow-auto p-4 pdf-container mx-[20px]  custom-scrollbar-pdf"
+                className=" flex flex-col"
                 style={{
-                  opacity: isResizing ? 0.7 : 1,
-                  transition: "opacity 0.1s ease",
+                  width: `calc(100% - ${sidebarWidth}px)`,
+                  transition: "none",
                 }}
               >
-                {activeDocuments.length > 0 ? (
-                  <div className="flex justify-center">
-                    <div className="space-y-4">
-                      {activeDocuments.map((doc, index) => {
-                        const docState = documentStates[doc.id] || {};
-                        const isVisible = index === activeTabIndex;
-                        const pendingAction = pendingScrollActions[doc.id];
+                {/* Document Tabs */}
+                {activeDocuments.length > 0 && (
+                  <div className=" px-6 bg-[#1C1B1D]flex-shrink-0">
+                    <div className="flex space-x-1 overflow-x-auto">
+                      {activeDocuments.map((doc, index) => (
+                        <button
+                          key={doc.id}
+                          onClick={() => setActiveTabIndex(index)}
+                          className={`px-3 py-2 text-sm font-medium rounded-t-md whitespace-nowrap transition-colors ${
+                            index === activeTabIndex
+                              ? "bg-white text-black border-b-2 border-[#333234]"
+                              : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                          }`}
+                        >
+                          {doc.name.replace(".pdf", "")}
+                          {activeDocuments.length > 1 && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const docToClose = activeDocuments[index];
 
-                        return (
-                          <div
-                            key={`pdf-${doc.id}`}
-                            style={{
-                              display: isVisible ? "block" : "none",
-                              transition: isResizing
-                                ? "none"
-                                : "transform 0.2s ease",
-                            }}
-                          >
-                            <Document
-                              file={doc.url}
-                              onLoadSuccess={onDocumentLoadSuccess(doc.id)}
-                              onLoadError={(error) => {
-                                console.error("PDF load error:", error);
-                                setPendingScrollActions((prev) => {
-                                  const newActions = { ...prev };
-                                  delete newActions[doc.id];
-                                  return newActions;
+                                // Remove document state when closing
+                                setDocumentStates((prev) => {
+                                  const newStates = { ...prev };
+                                  delete newStates[docToClose.id];
+                                  return newStates;
                                 });
+
+                                const newDocs = activeDocuments.filter(
+                                  (_, i) => i !== index
+                                );
+                                setActiveDocuments(newDocs);
+
+                                if (activeTabIndex >= newDocs.length) {
+                                  setActiveTabIndex(
+                                    Math.max(0, newDocs.length - 1)
+                                  );
+                                }
                               }}
-                              loading={
-                                <div className="flex items-center justify-center h-96 w-96">
-                                  <div className="text-gray-500">
-                                    Loading PDF...
-                                    {pendingAction && (
-                                      <div className="text-xs mt-2">
-                                        Will navigate to page{" "}
-                                        {pendingAction.targetPage}
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              }
-                              error={
-                                <div className="flex items-center justify-center h-96 w-96">
-                                  <div className="text-red-500">
-                                    Error loading PDF: {doc.name}
-                                  </div>
-                                </div>
-                              }
+                              className="ml-2 text-gray-400 hover:text-gray-600"
                             >
-                              {docState.numPages &&
-                                Array.from(
-                                  { length: docState.numPages },
-                                  (_, pageIndex) => {
-                                    const pageNumber = pageIndex + 1;
-                                    return (
-                                      <div
-                                        key={pageNumber}
-                                        id={`${doc.id}-page-${pageNumber}`}
-                                        className="bg-white shadow-lg rounded-lg overflow-hidden mb-4"
-                                      >
-                                        <div className="bg-gray-50 px-4 py-2 text-sm text-black font-medium">
-                                          Page {pageNumber}
-                                        </div>
-                                        <Page
-                                          pageNumber={pageNumber}
-                                          width={pdfWidth}
-                                          loading={
-                                            <div className="flex items-center justify-center h-96">
-                                              <div className="text-gray-500">
-                                                Loading page {pageNumber}...
-                                              </div>
-                                            </div>
-                                          }
-                                          renderTextLayer={false}
-                                          renderAnnotationLayer={false}
-                                        />
-                                      </div>
-                                    );
-                                  }
-                                )}
-                            </Document>
-                          </div>
-                        );
-                      })}
+                              ×
+                            </button>
+                          )}
+                        </button>
+                      ))}
                     </div>
                   </div>
-                ) : (
-                  <div className="loader">
-                    <span className="label">Loading</span>
-                    <span className="dots">
-                      <span className="dot">.</span>
-                      <span className="dot">.</span>
-                      <span className="dot">.</span>
+                )}
+
+                <div className=" px-6 py-4 flex items-center gap-6 bg-[#333234] flex-shrink-0 mx-[20px] rounded-t">
+                  <div className="flex items-center gap-2">
+                    <ChevronUp
+                      className="w-4 h-4 text-white cursor-pointer hover:text-gray-700"
+                      onClick={() =>
+                        goToPage(
+                          getCurrentDocumentState().currentPageInView - 1
+                        )
+                      }
+                    />
+                    <span className="text-sm font-medium text-white min-w-[20px] text-center">
+                      {getCurrentDocumentState().currentPageInView}
                     </span>
+                    <span className="text-sm text-white">/</span>
+                    <span className="text-sm text-white">
+                      {getCurrentDocumentState().numPages || "..."}
+                    </span>
+                    <ChevronDown
+                      className="w-4 h-4 text-white cursor-pointer hover:text-gray-700"
+                      onClick={() =>
+                        goToPage(
+                          getCurrentDocumentState().currentPageInView + 1
+                        )
+                      }
+                    />
+                  </div>
+                </div>
+
+                {activeDocuments.length > 0 && (
+                  <div
+                    className="flex-1 bg-[#1C1B1D] overflow-auto p-4 pdf-container mx-[20px]  custom-scrollbar-pdf"
+                    style={{
+                      opacity: isResizing ? 0.7 : 1,
+                      transition: "opacity 0.1s ease",
+                    }}
+                  >
+                    {activeDocuments.length > 0 ? (
+                      <div className="flex justify-center">
+                        <div className="space-y-4">
+                          {activeDocuments.map((doc, index) => {
+                            const docState = documentStates[doc.id] || {};
+                            const isVisible = index === activeTabIndex;
+                            const pendingAction = pendingScrollActions[doc.id];
+
+                            return (
+                              <div
+                                key={`pdf-${doc.id}`}
+                                style={{
+                                  display: isVisible ? "block" : "none",
+                                  transition: isResizing
+                                    ? "none"
+                                    : "transform 0.2s ease",
+                                }}
+                              >
+                                <Document
+                                  file={doc.url}
+                                  onLoadSuccess={onDocumentLoadSuccess(doc.id)}
+                                  onLoadError={(error) => {
+                                    console.error("PDF load error:", error);
+                                    setPendingScrollActions((prev) => {
+                                      const newActions = { ...prev };
+                                      delete newActions[doc.id];
+                                      return newActions;
+                                    });
+                                  }}
+                                  loading={
+                                    <div className="flex items-center justify-center h-96 w-96">
+                                      <div className="text-gray-500">
+                                        Loading PDF...
+                                        {pendingAction && (
+                                          <div className="text-xs mt-2">
+                                            Will navigate to page{" "}
+                                            {pendingAction.targetPage}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  }
+                                  error={
+                                    <div className="flex items-center justify-center h-96 w-96">
+                                      <div className="text-red-500">
+                                        Error loading PDF: {doc.name}
+                                      </div>
+                                    </div>
+                                  }
+                                >
+                                  {docState.numPages &&
+                                    Array.from(
+                                      { length: docState.numPages },
+                                      (_, pageIndex) => {
+                                        const pageNumber = pageIndex + 1;
+                                        return (
+                                          <div
+                                            key={pageNumber}
+                                            id={`${doc.id}-page-${pageNumber}`}
+                                            className="bg-white shadow-lg rounded-lg overflow-hidden mb-4"
+                                          >
+                                            <div className="bg-gray-50 px-4 py-2 text-sm text-black font-medium">
+                                              Page {pageNumber}
+                                            </div>
+                                            <Page
+                                              pageNumber={pageNumber}
+                                              width={pdfWidth}
+                                              loading={
+                                                <div className="flex items-center justify-center h-96">
+                                                  <div className="text-gray-500">
+                                                    Loading page {pageNumber}...
+                                                  </div>
+                                                </div>
+                                              }
+                                              renderTextLayer={false}
+                                              renderAnnotationLayer={false}
+                                            />
+                                          </div>
+                                        );
+                                      }
+                                    )}
+                                </Document>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="loader">
+                        <span className="label">Loading</span>
+                        <span className="dots">
+                          <span className="dot">.</span>
+                          <span className="dot">.</span>
+                          <span className="dot">.</span>
+                        </span>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
-            </div>
+            )}
 
             <div
               className="w-1 bg-[#333234] hover:bg-[grey] cursor-col-resize transition-colors select-none"
@@ -673,7 +690,11 @@ export default function PDFViewerPage() {
 
             <div
               className="bg-[#1C1B1D] border-l border-[#333234] flex flex-col flex-shrink-0  "
-              style={{ width: `${sidebarWidth}px`, transition: "none" }}
+              style={{
+                width:
+                  activeDocuments?.length === 0 ? "100%" : `${sidebarWidth}px`,
+                transition: "0.3s  linear",
+              }}
             >
               <div className="flex-1 p-6 overflow-auto pb-[120px] custom-scrollbar">
                 <div className="space-y-4">
@@ -691,10 +712,30 @@ export default function PDFViewerPage() {
                             <p className="text-sm font-medium">
                               {message.content}
                             </p>
+                            <button
+                              onClick={() => reconnect()}
+                              className="bg-white text-red-600 px-3 py-1 rounded text-xs font-medium hover:bg-gray-200 transition"
+                            >
+                              Retry Connection
+                            </button>
+                          </div>
+                        </div>
+                      ) : message.content.includes('"type":"error"') ? (
+                        <div className="flex justify-center">
+                          <div className="bg-red-600 text-white rounded-md px-4 py-2 max-w-xs text-center">
+                            <p className="text-sm font-medium">
+                              {message.content}
+                            </p>
+                            <button
+                              onClick={() => reconnect()}
+                              className="bg-white text-red-600 px-3 py-1 rounded text-xs font-medium hover:bg-gray-200 transition"
+                            >
+                              Retry Connection
+                            </button>
                           </div>
                         </div>
                       ) : (
-                        <div className="space-y-4 text-gray-900">
+                        <div className={`space-y-4 text-gray-900 `}>
                           <div className="text-white border-b border-[#333234] mt-[10px] pb-[10px]">
                             <p className="text-sm leading-relaxed">
                               {message.content}
