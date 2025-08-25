@@ -75,27 +75,52 @@ export const WebSocketProvider = ({ children }) => {
     console.log(msg, "message");
 
     // Handle restored conversation from refresh
-
     if (msg.type === "response_message") {
       if (Array.isArray(msg.data)) {
         const restored = msg.data.map((m) => {
           if (m.role === "HUMAN" || m.type === "query" || m.type === "user") {
             return { type: "user", content: m.content };
           }
+
           if (m.role === "AI") {
             if (m.type === "response_complete") {
+              //  Extract docs from chunks
+              const newSources = extractUniqueSourcesFromResponse({
+                chunks: m.chunks,
+              });
+              if (newSources.length > 0) {
+                setActiveDocuments((prevDocs) => {
+                  const existingUrls = new Set(prevDocs.map((doc) => doc.url));
+                  const uniqueNewSources = newSources.filter(
+                    (source) => !existingUrls.has(source.url)
+                  );
+                  const updatedDocs = [...prevDocs, ...uniqueNewSources];
+                  if (prevDocs.length === 0 && updatedDocs.length > 0) {
+                    setActiveTabIndex(0);
+                  }
+                  return updatedDocs;
+                });
+              }
+
               return {
                 type: "ai",
-                content: m.content?.generated_answer || m.content,
-                chunks: m.content?.chunks || [],
+                content: m.content,
+                chunks: m.chunks || [],
               };
             }
-            return {
-              type: "ai",
-              content: m.content,
-            };
+
+            if (m.type === "response_clarification") {
+              return { type: "ai", content: m.content };
+            }
+
+            if (m.type === "research_data") {
+              return { type: "ai", content: m.content, font: "italic" };
+            }
+
+            return { type: "ai", content: m.content };
           }
-          return { type: "ai", content: m.content }; // fallback
+
+          return { type: "ai", content: m.content };
         });
 
         setMessages(restored);
@@ -131,6 +156,7 @@ export const WebSocketProvider = ({ children }) => {
         {
           type: "ai",
           content: msg.message || "Got your question, starting analysis...",
+          font: "italic",
         },
       ]);
       return;
@@ -161,6 +187,7 @@ export const WebSocketProvider = ({ children }) => {
         {
           type: "ai",
           content: msg.message || "Fetching and analyzing documents...",
+          font: "italic",
         },
       ]);
       return;

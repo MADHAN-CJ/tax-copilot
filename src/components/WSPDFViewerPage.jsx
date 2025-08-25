@@ -31,7 +31,6 @@ export default function PDFViewerPage() {
   const messagesEndRef = useRef(null);
 
   const {
-    setMessages,
     messages,
     inputMessage,
     setInputMessage,
@@ -565,7 +564,11 @@ export default function PDFViewerPage() {
                           <div className="text-white border-b border-[#333234] mt-[10px] pb-[10px]">
                             <p className="text-sm leading-relaxed">
                               {/* {JSON.parse(JSON.stringify(message.content))} */}
-                              {message.content}
+                              {message.font === "italic" ? (
+                                <i>{message?.content}</i>
+                              ) : (
+                                message.content
+                              )}
                             </p>
 
                             {message.chunks && message.chunks.length > 0 && (
