@@ -1,7 +1,9 @@
+// src/hooks/useWebSocket.js
 import { useEffect, useRef, useState, useCallback } from "react";
 
 export function useWebSocket(url) {
   const [messages, setMessages] = useState([]);
+  const [isConnected, setIsConnected] = useState(false);
   const socketRef = useRef(null);
   const threadIdRef = useRef(null);
 
@@ -25,11 +27,10 @@ export function useWebSocket(url) {
             )
           );
 
-          // only show "connected" when reconnecting manually
           if (isRetry) {
             setMessages((prev) => [
               ...prev,
-              { type: "system", content: " Reconnected to server." },
+              { type: "system", content: "Reconnected to server." },
             ]);
           }
         } catch (error) {
@@ -49,134 +50,100 @@ export function useWebSocket(url) {
 
           if (data.type === "user_assigned" && data.userId) {
             localStorage.setItem("userId", data.userId);
+            setIsConnected(true);
+
+            return;
           }
 
-          // Backend says invalid user
           if (data.type === "error") {
             localStorage.removeItem("userId");
-
             setMessages((prev) => [
               ...prev,
               {
                 type: "error",
-                content: " Invalid user ID. Please Retry to reconnect.",
+                content: "Invalid user ID. Please Retry to reconnect.",
               },
             ]);
             return;
           }
 
           if (data.type === "ack" && data.threadId) {
-            threadIdRef.current = data.threadId;
-            localStorage.setItem("threadId", data?.threadId);
+            // Only push ack once
+            setMessages((prev) => {
+              if (
+                prev.some(
+                  (m) => m.type === "ack" && m.threadId === data.threadId
+                )
+              ) {
+                return prev; // skip duplicate
+              }
+              return [...prev, data];
+            });
+            return;
+          }
+
+          if (data.type === "response_message") {
+            // bulk restore messages on refresh
+            // if (Array.isArray(data.messages)) {
+            setMessages((prev) => [...prev, data]);
+            // }xx`
+            return;
           }
 
           if (
             [
-              "ack",
               "response_clarification",
               "research_data",
               "response_complete",
+              // "response_message",
             ].includes(data.type)
           ) {
             setMessages((prev) => [...prev, data]);
+            return;
           }
-        } catch {
-          setMessages((prev) => [...prev, event.data]);
+        } catch (err) {
+          console.error("Failed to parse WS message", err);
+          setMessages((prev) => [
+            ...prev,
+            { type: "error", content: event.data },
+          ]);
         }
       };
 
       socket.onclose = () => {
+        setIsConnected(false);
         console.log("Disconnected from websocket");
       };
 
       socket.onerror = (err) => {
+        setIsConnected(false);
         console.error("WebSocket error:", err);
-        setMessages((prev) => [...prev, err]);
+        setMessages((prev) => [
+          ...prev,
+          { type: "error", content: String(err) },
+        ]);
       };
     },
     [url]
   );
 
   useEffect(() => {
-    connect(); // connect only on mount
+    connect();
     return () => {
       if (socketRef.current) {
         socketRef.current.close();
       }
     };
   }, [connect]);
-  // useEffect(() => {
-  //   const socket = new WebSocket(url);
-  //   socketRef.current = socket;
 
-  //   socket.onopen = () => {
-  //     const userId = localStorage.getItem("userId");
-  //     socket.send(
-  //       JSON.stringify(
-  //         userId
-  //           ? { type: "recurring_connection", userId }
-  //           : { type: "new_connection" }
-  //       )
-  //     );
-  //   };
-
-  //   socket.onmessage = (event) => {
-  //     try {
-  //       const data = JSON.parse(event.data);
-
-  //       if (data.type === "user_assigned" && data.userId) {
-  //         localStorage.setItem("userId", data.userId);
-  //       }
-
-  //       if (data.type === "ack" && data.threadId) {
-  //         threadIdRef.current = data.threadId;
-  //         localStorage.setItem("threadId", data?.threadId);
-  //       }
-
-  //       if (
-  //         [
-  //           "ack",
-  //           "response_clarification",
-  //           "research_data",
-  //           "response_complete",
-  //         ].includes(data.type)
-  //       ) {
-  //         setMessages((prev) => [...prev, data]);
-  //       }
-  //     } catch {
-  //       setMessages((prev) => [...prev, event.data]);
-  //     }
-  //   };
-
-  //   socket.onclose = () => {
-  //     console.log("Disconnected from websocket");
-  //   };
-
-  //   socket.onerror = (err) => {
-  //     console.error("WebSocket error:", err);
-  //     setMessages((prev) => [
-  //       ...prev,
-  //       {
-  //         type: "error",
-  //         content: " Connection error. Please try again later.",
-  //       },
-  //     ]);
-  //   };
-
-  //   return () => {
-  //     socket.close();
-  //   };
-  // }, [url]);
-
-  // Send function with conditional threadId
-
-  const sendMessage = useCallback((query) => {
+  const sendMessage = useCallback((query, threadId) => {
+    console.log();
     if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
       const baseQuery = typeof query === "string" ? { query } : query;
 
-      const payload = threadIdRef.current
-        ? { ...baseQuery, threadId: threadIdRef.current, type: "query" }
-        : { ...baseQuery, type: "query" }; // first call, no threadId
+      const payload = threadId
+        ? { ...baseQuery, threadId, type: "query" }
+        : { ...baseQuery, type: "query" };
 
       socketRef.current.send(JSON.stringify(payload));
     } else {
@@ -184,11 +151,35 @@ export function useWebSocket(url) {
         ...prev,
         {
           type: "error",
-          content: " Cannot send message: WebSocket not connected.",
+          content: "Cannot send message: WebSocket not connected.",
         },
       ]);
     }
   }, []);
 
-  return { messages, setMessages, sendMessage, reconnect: () => connect(true) };
+  const getMessage = useCallback((threadId) => {
+    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+      const payload = { threadId, type: "get_message" };
+
+      socketRef.current.send(JSON.stringify(payload));
+    } else {
+      setMessages((prev) => [
+        ...prev,
+        {
+          type: "error",
+          content: "Cannot send message: WebSocket not connected.",
+        },
+      ]);
+    }
+  }, []);
+
+  return {
+    messages,
+    setMessages,
+    sendMessage,
+    getMessage,
+    reconnect: () => connect(true),
+    threadId: threadIdRef.current,
+    isConnected,
+  };
 }

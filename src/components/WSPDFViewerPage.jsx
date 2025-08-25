@@ -4,166 +4,52 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import { useWebSocket } from "../hooks/useWebSocket";
 import {
-  StylesLandingPageBodyWrapper,
   StylesLandingPageHeader,
-  StylesLandingPageWrapper,
   StylesSearchContainerWrapper,
 } from "./LandingPage/styles";
+import { useNavigate } from "react-router";
 
 //images
 import Logo from "../assets/images/logo.png";
 import UpArrow from "../assets/images/up-arrow.svg";
-import Banner from "../assets/images/landing-page-banner.png";
+import { useSocketContext } from "../context/WebSocketContext";
 
 // Configure PDF.js worker - simple local approach
 pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.js";
 
-//static prompts
-const searchPrompts = [
-  "Show Tesla’s net income trend over the last 5 years.",
-  "What was Amazon’s free cash flow in 2023?",
-  "Break down Meta’s operating expenses by category in 2024.",
-  "Rank the companies by total assets in their latest filings.",
-];
-
 export default function PDFViewerPage() {
+  const navigate = useNavigate();
   const [sidebarWidth, setSidebarWidth] = useState("384"); // 24rem = 384px
   const [isResizing, setIsResizing] = useState(false);
 
   // PDF state
-  const [activeDocuments, setActiveDocuments] = useState([]);
   const [activeTabIndex, setActiveTabIndex] = useState(0);
   const [pdfWidth, setPdfWidth] = useState(800);
   const [documentStates, setDocumentStates] = useState({}); // Store state for each document
   const [pendingScrollActions, setPendingScrollActions] = useState({});
 
-  // Chat state
-  const [messages, setMessages] = useState([]);
-  const [inputMessage, setInputMessage] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef(null);
-  // WebSocket
+
   const {
-    sendMessage,
-    messages: wsMessages,
-    reconnect,
-  } = useWebSocket("wss://api.bookshelf.diy/retrieve/ws");
+    setMessages,
+    messages,
+    inputMessage,
+    setInputMessage,
+    isLoading,
+    handleSendMessage,
+    activeDocuments,
+    setActiveDocuments,
+    handleInputKeyDown,
+  } = useSocketContext();
+
+  // WebSocket
+  const { reconnect } = useWebSocket("wss://api.bookshelf.diy/retrieve/ws");
 
   // Get current active document
   const getCurrentDocument = () => {
     if (activeDocuments.length === 0) return null;
     return activeDocuments[activeTabIndex] || null;
   };
-
-  // Handle sending a message
-  const handleSendMessage = async (event) => {
-    event.preventDefault();
-    if (!inputMessage.trim() || isLoading) return;
-
-    const userMessage = { type: "user", content: inputMessage };
-    setMessages((prev) => [...prev, userMessage]);
-    setInputMessage("");
-    setIsLoading(true);
-
-    // send via WebSocket
-    sendMessage(inputMessage);
-  };
-
-  // Extract unique sources
-  const extractUniqueSourcesFromResponse = (apiResponse) => {
-    if (!apiResponse.chunks || !Array.isArray(apiResponse.chunks)) return [];
-
-    const uniqueSources = new Set();
-    apiResponse.chunks.forEach((chunk) => {
-      if (chunk.source) {
-        uniqueSources.add(chunk.source);
-      }
-    });
-
-    return Array.from(uniqueSources).map((source) => ({
-      name: source,
-      url: `https://api.bookshelf.diy/finance/gpt/api/v1/static/docs/${source}`,
-      id: source.replace(/[^a-zA-Z0-9]/g, "_"),
-    }));
-  };
-
-  // Listen for WebSocket responses
-
-  const messageTypeRef = useRef("");
-  useEffect(() => {
-    if (wsMessages.length === 0) return;
-    messageTypeRef.current = wsMessages[wsMessages.length - 1];
-  }, [wsMessages]);
-
-  // Listen for latest WebSocket response
-  useEffect(() => {
-    if (wsMessages.length === 0) return;
-    const msg = wsMessages[wsMessages.length - 1]; // only newest message
-    if (msg.type === "response_clarification") {
-      setIsLoading(false);
-    }
-    if (msg.type === "research_data") {
-      setIsLoading(true);
-    }
-    if (msg.type === "response_complete") {
-      setIsLoading(false);
-
-      // Extract and add PDF sources
-      const newSources = extractUniqueSourcesFromResponse(msg?.message);
-      if (newSources.length > 0) {
-        setActiveDocuments((prevDocs) => {
-          const existingUrls = new Set(prevDocs.map((doc) => doc.url));
-          const uniqueNewSources = newSources.filter(
-            (source) => !existingUrls.has(source.url)
-          );
-          const updatedDocs = [...prevDocs, ...uniqueNewSources];
-
-          if (prevDocs.length === 0 && updatedDocs.length > 0) {
-            setActiveTabIndex(0);
-          }
-          return updatedDocs;
-        });
-      }
-
-      // Final AI message with answer
-      setMessages((prev) => [
-        ...prev,
-        {
-          type: "ai",
-          content: msg.message?.generated_answer,
-          chunks: msg.message?.chunks || [],
-        },
-      ]);
-    } else {
-      // Intermediate status messages
-      let displayText = "";
-
-      switch (msg.type) {
-        case "ack":
-          displayText = "Got your question, starting analysis...";
-          break;
-        case "response_clarification":
-          displayText = msg.message || "Clarifying response...";
-          break;
-        case "research_data":
-          displayText = msg.message || "Fetching and analyzing documents...";
-          break;
-        default:
-          displayText = msg.message || JSON.stringify(msg);
-          break;
-      }
-
-      // setIsLoading(true);
-
-      setMessages((prev) => [
-        ...prev,
-        {
-          type: "ai",
-          content: displayText,
-        },
-      ]);
-    }
-  }, [wsMessages]);
 
   // Handle reference button click
   const handleReferenceClick = (chunk) => {
@@ -407,8 +293,6 @@ export default function PDFViewerPage() {
     }
   }, [messages]);
 
-  // useEffect()
-
   return (
     <div className="h-screen bg-[#151415]  flex flex-col overflow-hidden">
       <div className="overflow-hidden bg-[#151415]">
@@ -421,70 +305,7 @@ export default function PDFViewerPage() {
           </div>
           <span className="header-right">support@bookshelf.diy</span>
         </StylesLandingPageHeader>
-        {activeDocuments.length === 0 && messages.length === 0 ? (
-          <div className="w-full  ">
-            <p>
-              {messages?.type === "error" && (
-                <span className="text-white text-3xl z-50">Error</span>
-              )}
-            </p>
-            <StylesLandingPageWrapper>
-              <StylesLandingPageBodyWrapper>
-                <div className="section left-part">
-                  <div className="left-part-header">
-                    <div className="left-part-header-left"></div>
-                    <div className="left-part-header-right"></div>
-                  </div>
-                  <div className="left-part-body">
-                    <img src={Banner} alt="banner" loading="lazy" />
-                  </div>
-                  <div></div>
-                </div>
-                <div className="section right-part">
-                  <p>Welcome,</p>
-                  <p>Ask anything</p>
-                  <div className="search-container-wrapper">
-                    <div className="right-part-bottom-section">
-                      <div className="bottom-card-section">
-                        {searchPrompts?.map((prompt, uniquePrompt) => {
-                          return (
-                            <div
-                              className="right-part-card"
-                              key={uniquePrompt}
-                              onClick={() => setInputMessage(prompt)}
-                            >
-                              {prompt}
-                            </div>
-                          );
-                        })}
-                      </div>
-                      <div className="search-container">
-                        <form onSubmit={handleSendMessage}>
-                          <textarea
-                            placeholder="Start typing..."
-                            value={inputMessage}
-                            onChange={(e) => setInputMessage(e.target.value)}
-                            disabled={isLoading}
-                          ></textarea>
-                          <div className="button-text">
-                            <span className="gpt-name">Using GPT-5 </span>
-                            <button
-                              className="submit-button"
-                              type="submit"
-                              disabled={isLoading || !inputMessage.trim()}
-                            >
-                              <img src={UpArrow} alt="Send" />
-                            </button>
-                          </div>
-                        </form>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </StylesLandingPageBodyWrapper>
-            </StylesLandingPageWrapper>
-          </div>
-        ) : (
+        {(activeDocuments.length > 0 || messages.length > 0) && (
           <div className="flex flex-1 h-[calc(100vh-60px)] bg-[#151415]">
             {activeDocuments.length > 0 && (
               <div
@@ -510,7 +331,7 @@ export default function PDFViewerPage() {
                         >
                           {doc.name.replace(".pdf", "")}
                           {activeDocuments.length > 1 && (
-                            <button
+                            <span
                               onClick={(e) => {
                                 e.stopPropagation();
                                 const docToClose = activeDocuments[index];
@@ -536,7 +357,7 @@ export default function PDFViewerPage() {
                               className="ml-2 text-gray-400 hover:text-gray-600"
                             >
                               ×
-                            </button>
+                            </span>
                           )}
                         </button>
                       ))}
@@ -650,7 +471,8 @@ export default function PDFViewerPage() {
                                               loading={
                                                 <div className="flex items-center justify-center h-96">
                                                   <div className="text-gray-500">
-                                                    Loading page {pageNumber}...
+                                                    Loading page {pageNumber}
+                                                    ...
                                                   </div>
                                                 </div>
                                               }
@@ -713,7 +535,11 @@ export default function PDFViewerPage() {
                               {message.content}
                             </p>
                             <button
-                              onClick={() => reconnect()}
+                              onClick={() => {
+                                reconnect();
+                                navigate("/");
+                                window.location.reload();
+                              }}
                               className="bg-white text-red-600 px-3 py-1 rounded text-xs font-medium hover:bg-gray-200 transition"
                             >
                               Retry Connection
@@ -738,6 +564,7 @@ export default function PDFViewerPage() {
                         <div className={`space-y-4 text-gray-900 `}>
                           <div className="text-white border-b border-[#333234] mt-[10px] pb-[10px]">
                             <p className="text-sm leading-relaxed">
+                              {/* {JSON.parse(JSON.stringify(message.content))} */}
                               {message.content}
                             </p>
 
@@ -773,7 +600,7 @@ export default function PDFViewerPage() {
                       )}
                     </div>
                   ))}
-                  {messageTypeRef?.current?.type === "research_data" && (
+                  {isLoading && (
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600 mt-3"></div>
                   )}
                   {/*  Scroll anchor */}
@@ -796,6 +623,7 @@ export default function PDFViewerPage() {
                           placeholder="Start typing..."
                           value={inputMessage}
                           onChange={(e) => setInputMessage(e.target.value)}
+                          onKeyDown={handleInputKeyDown}
                           disabled={isLoading}
                         ></textarea>
                         <div className="button-text">
