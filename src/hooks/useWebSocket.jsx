@@ -1,12 +1,14 @@
 // src/hooks/useWebSocket.js
 import { useEffect, useRef, useState, useCallback } from "react";
+import { useSocketContext } from "../context/WebSocketContext";
 
 export function useWebSocket(url) {
   const [messages, setMessages] = useState([]);
-  const [tokenUsage, setTokenUsage] = useState([]);
   const [isConnected, setIsConnected] = useState(false);
   const socketRef = useRef(null);
   const threadIdRef = useRef(null);
+
+  const [tokenUsage, setTokenUsage] = useState();
 
   const connect = useCallback(
     (isRetry = false) => {
@@ -56,8 +58,9 @@ export function useWebSocket(url) {
             return;
           }
 
+          //token data
           if (data.type === "response_userdata") {
-            setTokenUsage(data?.data);
+            setTokenUsage(data);
           }
 
           if (data.type === "error") {
@@ -203,7 +206,6 @@ export function useWebSocket(url) {
     threadId: threadIdRef.current,
     isConnected,
     getUserTokenUsage,
-    setTokenUsage,
     tokenUsage,
   };
 }

@@ -34,6 +34,7 @@ export const WebSocketProvider = ({ children }) => {
     reconnect,
     isConnected,
     getUserTokenUsage,
+    tokenUsage,
   } = useWebSocket("wss://api.bookshelf.diy/retrieve/ws");
 
   // refs
@@ -267,6 +268,7 @@ export const WebSocketProvider = ({ children }) => {
         handleSendMessage,
         reconnect,
         handleInputKeyDown,
+        tokenUsage,
       }}
     >
       {children}
