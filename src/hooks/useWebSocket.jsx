@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 
 export function useWebSocket(url) {
   const [messages, setMessages] = useState([]);
+  const [tokenUsage, setTokenUsage] = useState([]);
   const [isConnected, setIsConnected] = useState(false);
   const socketRef = useRef(null);
   const threadIdRef = useRef(null);
@@ -53,6 +54,10 @@ export function useWebSocket(url) {
             setIsConnected(true);
 
             return;
+          }
+
+          if (data.type === "response_userdata") {
+            setTokenUsage(data?.data);
           }
 
           if (data.type === "error") {
@@ -173,6 +178,22 @@ export function useWebSocket(url) {
     }
   }, []);
 
+  const getUserTokenUsage = useCallback(() => {
+    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+      const payload = { type: "get_userdata" };
+
+      socketRef.current.send(JSON.stringify(payload));
+    } else {
+      setMessages((prev) => [
+        ...prev,
+        {
+          type: "error",
+          content: "Cannot send message: WebSocket not connected.",
+        },
+      ]);
+    }
+  }, []);
+
   return {
     messages,
     setMessages,
@@ -181,5 +202,8 @@ export function useWebSocket(url) {
     reconnect: () => connect(true),
     threadId: threadIdRef.current,
     isConnected,
+    getUserTokenUsage,
+    setTokenUsage,
+    tokenUsage,
   };
 }

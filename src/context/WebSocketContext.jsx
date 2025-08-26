@@ -33,6 +33,7 @@ export const WebSocketProvider = ({ children }) => {
     messages: wsMessages,
     reconnect,
     isConnected,
+    getUserTokenUsage,
   } = useWebSocket("wss://api.bookshelf.diy/retrieve/ws");
 
   // refs
@@ -72,10 +73,11 @@ export const WebSocketProvider = ({ children }) => {
   useEffect(() => {
     if (wsMessages.length === 0) return;
     const msg = wsMessages[wsMessages.length - 1];
-    console.log(msg, "message");
 
     // Handle restored conversation from refresh
     if (msg.type === "response_message") {
+      setActiveDocuments([]);
+      setMessages([]);
       if (Array.isArray(msg.data)) {
         const restored = msg.data.map((m) => {
           if (m.role === "HUMAN" || m.type === "query" || m.type === "user") {
@@ -244,6 +246,10 @@ export const WebSocketProvider = ({ children }) => {
     // Mark app as mounted for this session
     sessionStorage.setItem("appMounted", "true");
   }, [isConnected, threadId, location.pathname, getMessage]);
+
+  useEffect(() => {
+    if (isConnected) getUserTokenUsage();
+  }, [isConnected]);
 
   return (
     <WebSocketContext.Provider

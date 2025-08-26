@@ -126,6 +126,7 @@ export const StylesLandingPageBodyWrapper = styled.div`
           display: flex;
           gap: 20px;
           padding: 20px 0;
+          overflow-x: auto;
 
           .right-part-card {
             color: #fff;

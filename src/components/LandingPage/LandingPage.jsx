@@ -21,18 +21,21 @@ const searchPrompts = [
 
 export default function LandingPage() {
   const {
-    messages,
+    setMessages,
     inputMessage,
     setInputMessage,
     isLoading,
     handleSendMessage,
-    activeDocuments,
+    setActiveDocuments,
     handleInputKeyDown,
   } = useSocketContext();
 
   useEffect(() => {
     sessionStorage.removeItem("appMounted");
-  });
+    setMessages([]);
+    setActiveDocuments([]);
+    localStorage.removeItem("threadId");
+  }, []);
   return (
     <div className="h-screen bg-[#151415]  flex flex-col overflow-hidden">
       <div className="overflow-hidden bg-[#151415]">
@@ -45,71 +48,71 @@ export default function LandingPage() {
           </div>
           <span className="header-right">support@bookshelf.diy</span>
         </StylesLandingPageHeader>
-        {activeDocuments.length === 0 && messages.length === 0 && (
-          <div className="w-full  ">
-            {/* <p>
+        {/* {activeDocuments.length === 0 && messages.length === 0 && ( */}
+        <div className="w-full  ">
+          {/* <p>
               {messages?.type === "error" && (
                 <span className="text-white text-3xl z-50">Error</span>
               )}
             </p> */}
-            <StylesLandingPageWrapper>
-              <StylesLandingPageBodyWrapper>
-                <div className="section left-part">
-                  <div className="left-part-header">
-                    <div className="left-part-header-left"></div>
-                    <div className="left-part-header-right"></div>
-                  </div>
-                  <div className="left-part-body">
-                    <img src={Banner} alt="banner" loading="lazy" />
-                  </div>
-                  <div></div>
+          <StylesLandingPageWrapper>
+            <StylesLandingPageBodyWrapper>
+              <div className="section left-part">
+                <div className="left-part-header">
+                  <div className="left-part-header-left"></div>
+                  <div className="left-part-header-right"></div>
                 </div>
-                <div className="section right-part">
-                  <p>Welcome,</p>
-                  <p>Ask anything</p>
-                  <div className="search-container-wrapper">
-                    <div className="right-part-bottom-section">
-                      <div className="bottom-card-section">
-                        {searchPrompts?.map((prompt, uniquePrompt) => {
-                          return (
-                            <div
-                              className="right-part-card"
-                              key={uniquePrompt}
-                              onClick={() => setInputMessage(prompt)}
-                            >
-                              {prompt}
-                            </div>
-                          );
-                        })}
-                      </div>
-                      <div className="search-container">
-                        <form onSubmit={handleSendMessage}>
-                          <textarea
-                            placeholder="Start typing..."
-                            value={inputMessage}
-                            onChange={(e) => setInputMessage(e.target.value)}
-                            onKeyDown={handleInputKeyDown}
-                            disabled={isLoading}
-                          ></textarea>
-                          <div className="button-text">
-                            <span className="gpt-name">Using GPT-5 </span>
-                            <button
-                              className="submit-button"
-                              type="submit"
-                              disabled={isLoading || !inputMessage.trim()}
-                            >
-                              <img src={UpArrow} alt="Send" />
-                            </button>
+                <div className="left-part-body">
+                  <img src={Banner} alt="banner" loading="lazy" />
+                </div>
+                <div></div>
+              </div>
+              <div className="section right-part">
+                <p>Welcome,</p>
+                <p>Ask anything</p>
+                <div className="search-container-wrapper">
+                  <div className="right-part-bottom-section">
+                    <div className="bottom-card-section custom-scrollbar">
+                      {searchPrompts?.map((prompt, uniquePrompt) => {
+                        return (
+                          <div
+                            className="right-part-card"
+                            key={uniquePrompt}
+                            onClick={() => setInputMessage(prompt)}
+                          >
+                            {prompt}
                           </div>
-                        </form>
-                      </div>
+                        );
+                      })}
+                    </div>
+                    <div className="search-container">
+                      <form onSubmit={handleSendMessage}>
+                        <textarea
+                          placeholder="Start typing..."
+                          value={inputMessage}
+                          onChange={(e) => setInputMessage(e.target.value)}
+                          onKeyDown={handleInputKeyDown}
+                          disabled={isLoading}
+                        ></textarea>
+                        <div className="button-text">
+                          <span className="gpt-name">Using GPT-5 </span>
+                          <button
+                            className="submit-button"
+                            type="submit"
+                            disabled={isLoading || !inputMessage.trim()}
+                          >
+                            <img src={UpArrow} alt="Send" />
+                          </button>
+                        </div>
+                      </form>
                     </div>
                   </div>
                 </div>
-              </StylesLandingPageBodyWrapper>
-            </StylesLandingPageWrapper>
-          </div>
-        )}
+              </div>
+            </StylesLandingPageBodyWrapper>
+          </StylesLandingPageWrapper>
+        </div>
+        {/* )} */}
       </div>
     </div>
   );
