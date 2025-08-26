@@ -20,6 +20,7 @@ import { useSocketContext } from "../../context/WebSocketContext";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router";
+import { onClickBounceEffect } from "../../utils/utils";
 
 //static prompts
 const searchPrompts = [
@@ -40,10 +41,11 @@ export default function LandingPage() {
     setActiveDocuments,
     handleInputKeyDown,
     tokenUsage,
+    isSidebarOpen,
+    setIsSidebarOpen,
   } = useSocketContext();
   const navigate = useNavigate();
 
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
 
@@ -63,9 +65,13 @@ export default function LandingPage() {
     localStorage.removeItem("threadId");
   }, []);
 
-  const filteredThreads = tokenUsage?.data?.userThreadData?.filter((query) =>
-    query?.initialMessage?.toLowerCase().includes(debouncedSearch)
-  );
+  const filteredThreads = tokenUsage?.data?.userThreadData
+    ?.filter((query) =>
+      query?.initialMessage?.toLowerCase().includes(debouncedSearch)
+    )
+    ?.sort(
+      (a, b) => new Date(b.messageCreatedAt) - new Date(a.messageCreatedAt)
+    );
   const usedTokens = tokenUsage?.data?.userData?.tokensUsed || 0;
   const progress = Math.min((usedTokens / totalTokenCount) * 100, 100);
 
@@ -132,13 +138,12 @@ export default function LandingPage() {
                     </div>
                   </StylesTokenUsage>
 
-                  <StylesNewChatButton>
-                    <img
-                      src={NewChatButton}
-                      alt="chat"
-                      onClick={() => navigate("/")}
-                    />{" "}
-                    New Chat
+                  <StylesNewChatButton
+                    onClick={(event) =>
+                      onClickBounceEffect(event, 150, () => navigate("/"))
+                    }
+                  >
+                    <img src={NewChatButton} alt="chat" /> New Chat
                   </StylesNewChatButton>
 
                   <StylesHistoryWrapper>

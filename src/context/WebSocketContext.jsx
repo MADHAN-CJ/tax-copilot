@@ -27,6 +27,9 @@ export const WebSocketProvider = ({ children }) => {
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
+  //sidebar
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
   const {
     sendMessage,
     getMessage,
@@ -269,6 +272,10 @@ export const WebSocketProvider = ({ children }) => {
         reconnect,
         handleInputKeyDown,
         tokenUsage,
+        isSidebarOpen,
+        setIsSidebarOpen,
+        isConnected,
+        getUserTokenUsage,
       }}
     >
       {children}

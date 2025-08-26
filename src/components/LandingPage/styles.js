@@ -356,6 +356,7 @@ export const StylesNewChatButton = styled.button`
   margin-bottom: 20px;
   cursor: pointer;
   text-align: center;
+  color: #fff;
 `;
 
 export const StylesHistoryWrapper = styled.div`
