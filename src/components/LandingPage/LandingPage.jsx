@@ -59,9 +59,10 @@ export default function LandingPage() {
   }, [searchValue]);
 
   useEffect(() => {
+    sessionStorage.setItem("appMounted", "false");
     sessionStorage.removeItem("appMounted");
-    setMessages([]);
-    setActiveDocuments([]);
+    // setMessages([]);
+    // setActiveDocuments([]);
     localStorage.removeItem("threadId");
   }, []);
 

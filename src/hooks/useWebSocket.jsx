@@ -5,10 +5,24 @@ import { useSocketContext } from "../context/WebSocketContext";
 export function useWebSocket(url) {
   const [messages, setMessages] = useState([]);
   const [isConnected, setIsConnected] = useState(false);
+  const [tokenUsage, setTokenUsage] = useState();
+
+  //refs
   const socketRef = useRef(null);
   const threadIdRef = useRef(null);
+  const retryAttemptRef = useRef(0);
+  const reconnectTimeoutRef = useRef(null);
 
-  const [tokenUsage, setTokenUsage] = useState();
+  const pushMessage = useCallback((msg) => {
+    setMessages((prev) => [...prev, msg]);
+  }, []);
+
+  const pushError = useCallback(
+    (content) => {
+      pushMessage({ type: "error", content });
+    },
+    [pushMessage]
+  );
 
   const connect = useCallback(
     (isRetry = false) => {
@@ -29,21 +43,15 @@ export function useWebSocket(url) {
                 : { type: "new_connection" }
             )
           );
-
+          retryAttemptRef.current = 0;
           if (isRetry) {
             setMessages((prev) => [
               ...prev,
               { type: "system", content: "Reconnected to server." },
             ]);
           }
-        } catch (error) {
-          setMessages((prev) => [
-            ...prev,
-            {
-              type: "error",
-              content: "Connection error. Please click Retry to reconnect.",
-            },
-          ]);
+        } catch {
+          pushError(" Failed to establish connection.");
         }
       };
 
@@ -51,88 +59,72 @@ export function useWebSocket(url) {
         try {
           const data = JSON.parse(event.data);
 
-          if (data.type === "user_assigned" && data.userId) {
-            localStorage.setItem("userId", data.userId);
-            setIsConnected(true);
+          switch (data.type) {
+            case "user_assigned":
+              if (data.userId) {
+                localStorage.setItem("userId", data.userId);
+                setIsConnected(true);
+              }
+              break;
 
-            return;
-          }
+            case "response_userdata":
+              setTokenUsage(data);
+              break;
 
-          //token data
-          if (data.type === "response_userdata") {
-            setTokenUsage(data);
-          }
+            case "error":
+              localStorage.removeItem("userId");
+              pushError(" Invalid user ID. Please retry.");
+              break;
 
-          if (data.type === "error") {
-            localStorage.removeItem("userId");
-            setMessages((prev) => [
-              ...prev,
-              {
-                type: "error",
-                content: "Invalid user ID. Please Retry to reconnect.",
-              },
-            ]);
-            return;
-          }
-
-          if (data.type === "ack" && data.threadId) {
-            // Only push ack once
-            setMessages((prev) => {
-              if (
+            case "ack":
+              setMessages((prev) =>
                 prev.some(
                   (m) => m.type === "ack" && m.threadId === data.threadId
                 )
-              ) {
-                return prev; // skip duplicate
-              }
-              return [...prev, data];
-            });
-            return;
-          }
+                  ? prev
+                  : [...prev, data]
+              );
+              break;
 
-          if (data.type === "response_message") {
-            // bulk restore messages on refresh
-            // if (Array.isArray(data.messages)) {
-            setMessages((prev) => [...prev, data]);
-            // }xx`
-            return;
-          }
+            case "response_message":
+            case "response_clarification":
+            case "research_data":
+            case "response_complete":
+              pushMessage(data);
+              break;
 
-          if (
-            [
-              "response_clarification",
-              "research_data",
-              "response_complete",
-              // "response_message",
-            ].includes(data.type)
-          ) {
-            setMessages((prev) => [...prev, data]);
-            return;
+            default:
+              pushError(` Unknown message type: ${data.type}`);
+              break;
           }
         } catch (err) {
-          console.error("Failed to parse WS message", err);
-          setMessages((prev) => [
-            ...prev,
-            { type: "error", content: event.data },
-          ]);
+          console.error("WS parse error:", err);
+          pushError(event.data || " Failed to parse server response.");
         }
       };
 
       socket.onclose = () => {
         setIsConnected(false);
         console.log("Disconnected from websocket");
+
+        // Exponential backoff reconnect
+        retryAttemptRef.current += 1;
+        const delay = Math.min(1000 * 2 ** retryAttemptRef.current, 30000); // max 30s
+        reconnectTimeoutRef.current = setTimeout(() => connect(true), delay);
+
+        pushMessage({
+          type: "system",
+          content: ` Connection lost. Retrying in ${delay / 1000}s...`,
+        });
       };
 
       socket.onerror = (err) => {
         setIsConnected(false);
         console.error("WebSocket error:", err);
-        setMessages((prev) => [
-          ...prev,
-          { type: "error", content: String(err) },
-        ]);
+        pushError(" Connection error. Please retry.");
       };
     },
-    [url]
+    [url, pushMessage, pushError]
   );
 
   useEffect(() => {
@@ -141,45 +133,47 @@ export function useWebSocket(url) {
       if (socketRef.current) {
         socketRef.current.close();
       }
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
     };
   }, [connect]);
 
-  const sendMessage = useCallback((query, threadId) => {
-    console.log();
-    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-      const baseQuery = typeof query === "string" ? { query } : query;
+  const sendMessage = useCallback(
+    (query, threadId) => {
+      if (
+        socketRef.current &&
+        socketRef.current.readyState === WebSocket.OPEN
+      ) {
+        const baseQuery = typeof query === "string" ? { query } : query;
 
-      const payload = threadId
-        ? { ...baseQuery, threadId, type: "query" }
-        : { ...baseQuery, type: "query" };
+        const payload = threadId
+          ? { ...baseQuery, threadId, type: "query" }
+          : { ...baseQuery, type: "query" };
 
-      socketRef.current.send(JSON.stringify(payload));
-    } else {
-      setMessages((prev) => [
-        ...prev,
-        {
-          type: "error",
-          content: "Cannot send message: WebSocket not connected.",
-        },
-      ]);
-    }
-  }, []);
+        socketRef.current.send(JSON.stringify(payload));
+      } else {
+        pushError(" Cannot send message: WebSocket not connected.");
+      }
+    },
+    [pushError]
+  );
 
-  const getMessage = useCallback((threadId) => {
-    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-      const payload = { threadId, type: "get_message" };
+  const getMessage = useCallback(
+    (threadId) => {
+      if (
+        socketRef.current &&
+        socketRef.current.readyState === WebSocket.OPEN
+      ) {
+        const payload = { threadId, type: "get_message" };
 
-      socketRef.current.send(JSON.stringify(payload));
-    } else {
-      setMessages((prev) => [
-        ...prev,
-        {
-          type: "error",
-          content: "Cannot send message: WebSocket not connected.",
-        },
-      ]);
-    }
-  }, []);
+        socketRef.current.send(JSON.stringify(payload));
+      } else {
+        pushError(" Cannot fetch messages: WebSocket not connected.");
+      }
+    },
+    [pushError]
+  );
 
   const getUserTokenUsage = useCallback(() => {
     if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
@@ -187,15 +181,9 @@ export function useWebSocket(url) {
 
       socketRef.current.send(JSON.stringify(payload));
     } else {
-      setMessages((prev) => [
-        ...prev,
-        {
-          type: "error",
-          content: "Cannot send message: WebSocket not connected.",
-        },
-      ]);
+      pushError(" Cannot fetch usage: WebSocket not connected.");
     }
-  }, []);
+  }, [pushError]);
 
   return {
     messages,

@@ -56,6 +56,7 @@ export default function PDFViewerPage() {
     setIsSidebarOpen,
     getUserTokenUsage,
     isConnected,
+    setMessages,
   } = useSocketContext();
 
   // WebSocket
@@ -314,7 +315,7 @@ export default function PDFViewerPage() {
   // debounce effect
   useEffect(() => {
     const handler = setTimeout(() => {
-      setDebouncedSearch(searchValue.toLowerCase());
+      setDebouncedSearch(searchValue?.toLowerCase());
     }, 300); // 300ms delay
 
     return () => clearTimeout(handler);
@@ -333,8 +334,24 @@ export default function PDFViewerPage() {
 
   useEffect(() => {
     if (isConnected) getUserTokenUsage();
-  }, [isConnected]);
+  }, [isConnected, getUserTokenUsage]);
 
+  // mark app as "justMounted" on first entry
+  useEffect(() => {
+    if (!sessionStorage.getItem("appMounted")) {
+      sessionStorage.setItem("appMounted", "justMounted");
+    }
+  }, []);
+
+  useEffect(() => {
+    const isPageReload = performance
+      .getEntriesByType("navigation")
+      .some((nav) => nav.type === "reload");
+
+    if (!isPageReload) {
+      setMessages([]);
+    }
+  }, [location.pathname]);
   return (
     <div className="h-screen bg-[#151415]  flex flex-col overflow-hidden">
       <StylesLandingPageHeader>
@@ -448,7 +465,7 @@ export default function PDFViewerPage() {
                   }}
                 >
                   {/* Document Tabs */}
-                  {activeDocuments.length > 0 && (
+                  {activeDocuments?.length > 0 && (
                     <div className=" px-6 bg-[#1C1B1D]flex-shrink-0">
                       <div className="flex space-x-1 overflow-x-auto">
                         {activeDocuments.map((doc, index) => (
@@ -462,7 +479,7 @@ export default function PDFViewerPage() {
                             }`}
                           >
                             {doc.name.replace(".pdf", "")}
-                            {activeDocuments.length > 1 && (
+                            {activeDocuments?.length > 1 && (
                               <span
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -528,7 +545,7 @@ export default function PDFViewerPage() {
                         transition: "opacity 0.1s ease",
                       }}
                     >
-                      {activeDocuments.length > 0 ? (
+                      {activeDocuments?.length > 0 ? (
                         <div className="flex justify-center">
                           <div className="space-y-4">
                             {activeDocuments.map((doc, index) => {
@@ -649,15 +666,17 @@ export default function PDFViewerPage() {
               >
                 <div className="flex-1 p-6 overflow-auto pb-[120px] custom-scrollbar">
                   <div className="space-y-4">
-                    {messages.map((message, index) => (
+                    {messages?.map((message, index) => (
                       <div key={index} className="space-y-4 ">
-                        {message.type === "user" ? (
+                        {message?.type === "user" && (
                           <div className="flex justify-end">
                             <div className="bg-[#333234] text-white rounded-2xl rounded-br-md px-4 py-3 max-w-xs">
                               <p className="text-sm">{message.content}</p>
                             </div>
                           </div>
-                        ) : message.type === "error" ? (
+                        )}{" "}
+                        {(message?.type === "error" ||
+                          message?.content?.includes('"type":"error"')) && (
                           <div className="flex justify-center">
                             <div className="bg-red-600 text-white rounded-md px-4 py-2 max-w-xs text-center">
                               <p className="text-sm font-medium">
@@ -675,68 +694,60 @@ export default function PDFViewerPage() {
                               </button>
                             </div>
                           </div>
-                        ) : message.content.includes('"type":"error"') ? (
-                          <div className="flex justify-center">
-                            <div className="bg-red-600 text-white rounded-md px-4 py-2 max-w-xs text-center">
-                              <p className="text-sm font-medium">
-                                {message.content}
-                              </p>
-                              <button
-                                onClick={() => reconnect()}
-                                className="bg-white text-red-600 px-3 py-1 rounded text-xs font-medium hover:bg-gray-200 transition"
-                              >
-                                Retry Connection
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className={`space-y-4 text-gray-900 `}>
+                        )}
+                        {message?.type === "ai" && (
+                          <div className="flex justify-start">
                             <div className="text-white border-b border-[#333234] mt-[10px] pb-[10px]">
                               <p className="text-sm leading-relaxed">
-                                {/* {JSON.parse(JSON.stringify(message.content))} */}
-                                {message.font === "italic" ? (
+                                {message?.font === "italic" ? (
                                   <i>{message?.content}</i>
                                 ) : (
                                   message.content
                                 )}
                               </p>
-                              {message.chunks && message.chunks.length > 0 && (
-                                <div className="mt-4 space-y-2">
-                                  <h4 className="text-xs font-medium text-gray-600 uppercase tracking-wider">
-                                    References
-                                  </h4>
-                                  <div className="flex flex-wrap gap-2">
-                                    {message.chunks.map((chunk, chunkIndex) => (
-                                      <Button
-                                        key={chunkIndex}
-                                        variant="outline"
-                                        size="sm"
-                                        className="text-xs h-6 px-2 border-[#333234] text-white "
-                                        onClick={() =>
-                                          handleReferenceClick(chunk)
-                                        }
-                                        title={`${
-                                          chunk.source
-                                        } - Page ${Math.floor(
-                                          chunk.page_start
-                                        )}`}
-                                      >
-                                        <ExternalLink className="w-3 h-3 mr-1" />
-                                        {chunk.source.replace(".pdf", "")} p.
-                                        {Math.floor(chunk.page_start)}
-                                      </Button>
-                                    ))}
+                              {message?.chunks &&
+                                message?.chunks?.length > 0 && (
+                                  <div className="mt-4 space-y-2">
+                                    <h4 className="text-xs font-medium text-gray-600 uppercase tracking-wider">
+                                      References
+                                    </h4>
+                                    <div className="flex flex-wrap gap-2">
+                                      {message.chunks.map(
+                                        (chunk, chunkIndex) => (
+                                          <Button
+                                            key={chunkIndex}
+                                            variant="outline"
+                                            size="sm"
+                                            className="text-xs h-6 px-2 border-[#333234] text-white "
+                                            onClick={() =>
+                                              handleReferenceClick(chunk)
+                                            }
+                                            title={`${
+                                              chunk.source
+                                            } - Page ${Math.floor(
+                                              chunk.page_start
+                                            )}`}
+                                          >
+                                            <ExternalLink className="w-3 h-3 mr-1" />
+                                            {chunk.source.replace(".pdf", "")}{" "}
+                                            p.
+                                            {Math.floor(chunk.page_start)}
+                                          </Button>
+                                        )
+                                      )}
+                                    </div>
                                   </div>
-                                </div>
-                              )}
+                                )}
                             </div>
                           </div>
                         )}
                       </div>
                     ))}
+
                     {isLoading && (
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600 mt-3"></div>
                     )}
+
                     {/*  Scroll anchor */}
                     <div ref={messagesEndRef} />
                   </div>

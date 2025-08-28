@@ -14,8 +14,8 @@ const WebSocketContext = createContext();
 export const WebSocketProvider = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  // Extract threadId manually from the path `/c/:threadId`
 
+  // Extract threadId manually from the path `/c/:threadId`
   const threadId = location.pathname.startsWith("/c/")
     ? location.pathname.split("/c/")[1]?.split("/")[0] || null
     : null;
@@ -24,6 +24,7 @@ export const WebSocketProvider = ({ children }) => {
   const [activeTabIndex, setActiveTabIndex] = useState(0);
 
   const [messages, setMessages] = useState([]);
+  const [systemMessages, setSystemMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -43,6 +44,11 @@ export const WebSocketProvider = ({ children }) => {
   // refs
   const lastAckId = useRef(null);
 
+  // Push system message to toasts
+  const pushSystemMessage = useCallback((msg) => {
+    setSystemMessages((prev) => [...prev, { id: Date.now(), ...msg }]);
+  }, []);
+
   const extractUniqueSourcesFromResponse = useCallback((apiResponse) => {
     if (!apiResponse?.chunks || !Array.isArray(apiResponse.chunks)) return [];
     const uniqueSources = new Set();
@@ -56,6 +62,7 @@ export const WebSocketProvider = ({ children }) => {
     }));
   }, []);
 
+  //User sends a message
   const handleSendMessage = async (event) => {
     if (event) event.preventDefault();
     if (!inputMessage.trim() || isLoading) return;
@@ -70,16 +77,38 @@ export const WebSocketProvider = ({ children }) => {
   const handleInputKeyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
+
       handleSendMessage();
     }
   };
 
   useEffect(() => {
-    if (wsMessages.length === 0) return;
+    if (wsMessages?.length === 0) return;
     const msg = wsMessages[wsMessages.length - 1];
 
+    // Ignore error messages on first mount
+    if (msg?.type === "error" && messages.length === 0) {
+      console.log("Ignoring initial error on first mount:", msg);
+      return;
+    }
+
+    // Only process allowed live message types
+    if (
+      ![
+        "ack",
+        "response_clarification",
+        "research_data",
+        "response_complete",
+        "error",
+        "response_message",
+      ].includes(msg.type)
+    ) {
+      return;
+    }
+
     // Handle restored conversation from refresh
-    if (msg.type === "response_message") {
+
+    if (msg?.type === "response_message") {
       setActiveDocuments([]);
       setMessages([]);
       if (Array.isArray(msg.data)) {
@@ -115,6 +144,10 @@ export const WebSocketProvider = ({ children }) => {
               };
             }
 
+            if (m.type === "ack") {
+              return { type: "ai", content: m.content };
+            }
+
             if (m.type === "response_clarification") {
               return { type: "ai", content: m.content };
             }
@@ -134,22 +167,8 @@ export const WebSocketProvider = ({ children }) => {
       return;
     }
 
-    // Only process allowed live message types
-    if (
-      ![
-        "ack",
-        "response_clarification",
-        "research_data",
-        "response_complete",
-        "error",
-        "response_message",
-      ].includes(msg.type)
-    ) {
-      return;
-    }
-
     // Prevent duplicate ACK
-    if (msg.type === "ack") {
+    if (msg?.type === "ack") {
       if (msg.threadId === lastAckId.current) return;
       lastAckId.current = msg.threadId;
 
@@ -157,18 +176,17 @@ export const WebSocketProvider = ({ children }) => {
         navigate(`/c/${msg.threadId}`);
       }
 
-      setMessages((prev) => [
-        ...prev,
-        {
-          type: "ai",
-          content: msg.message || "Got your question, starting analysis...",
-          font: "italic",
-        },
-      ]);
+      const ackMessage = {
+        type: "ai",
+        content: msg.message || "Got your question, starting analysis...",
+        font: "italic",
+      };
+
+      setMessages((prev) => [...prev, ackMessage]);
       return;
     }
 
-    if (msg.type === "response_clarification") {
+    if (msg?.type === "response_clarification") {
       setIsLoading(false);
       setMessages((prev) => [
         ...prev,
@@ -177,16 +195,7 @@ export const WebSocketProvider = ({ children }) => {
       return;
     }
 
-    if (msg.type === "error") {
-      setIsLoading(false);
-      setMessages((prev) => [
-        ...prev,
-        { type: "error", content: msg.message || "Error try after some time" },
-      ]);
-      return;
-    }
-
-    if (msg.type === "research_data") {
+    if (msg?.type === "research_data") {
       setIsLoading(true);
       setMessages((prev) => [
         ...prev,
@@ -199,47 +208,67 @@ export const WebSocketProvider = ({ children }) => {
       return;
     }
 
-    if (msg.type === "response_complete") {
+    if (msg?.type === "response_complete") {
       setIsLoading(false);
 
-      const newSources = extractUniqueSourcesFromResponse(msg?.message);
-      if (newSources.length > 0) {
-        setActiveDocuments((prevDocs) => {
-          const existingUrls = new Set(prevDocs.map((doc) => doc.url));
-          const uniqueNewSources = newSources.filter(
-            (source) => !existingUrls.has(source.url)
-          );
-          const updatedDocs = [...prevDocs, ...uniqueNewSources];
-          if (prevDocs.length === 0 && updatedDocs.length > 0) {
-            setActiveTabIndex(0);
-          }
-          return updatedDocs;
-        });
-      }
+      if (msg.message && typeof msg.message === "object") {
+        const newSources = extractUniqueSourcesFromResponse(msg?.message);
+        if (newSources.length > 0) {
+          setActiveDocuments((prevDocs) => {
+            const existingUrls = new Set(prevDocs.map((doc) => doc.url));
+            const uniqueNewSources = newSources.filter(
+              (source) => !existingUrls.has(source.url)
+            );
+            const updatedDocs = [...prevDocs, ...uniqueNewSources];
+            if (prevDocs.length === 0 && updatedDocs.length > 0) {
+              setActiveTabIndex(0);
+            }
+            return updatedDocs;
+          });
+        }
 
+        setMessages((prev) => [
+          ...prev,
+          {
+            type: "ai",
+            content: msg.message?.generated_answer,
+            chunks: msg.message?.chunks || [],
+          },
+        ]);
+      } else if (typeof msg.message === "string") {
+        setMessages((prev) => [
+          ...prev,
+          {
+            type: "error",
+            content: msg.message, // show the error string from backend
+          },
+        ]);
+      }
+    }
+    if (msg?.type === "error") {
+      setIsLoading(false);
       setMessages((prev) => [
         ...prev,
-        {
-          type: "ai",
-          content: msg.message?.generated_answer,
-          chunks: msg.message?.chunks || [],
-        },
+        { type: "error", content: msg.message || "Error try after some time" },
       ]);
+      return;
     }
   }, [
     wsMessages,
     navigate,
-    location,
     extractUniqueSourcesFromResponse,
     location.pathname,
   ]);
 
   useEffect(() => {
-    const alreadyMounted = sessionStorage.getItem("appMounted");
+    const appMounted = sessionStorage.getItem("appMounted");
+    const isPageReload = performance
+      .getEntriesByType("navigation")
+      .some((nav) => nav.type === "reload");
 
-    // If app was already mounted in this session → this is a reload
     if (
-      alreadyMounted &&
+      isPageReload &&
+      appMounted === "true" &&
       location.pathname.startsWith("/c/") &&
       threadId &&
       isConnected
@@ -247,19 +276,29 @@ export const WebSocketProvider = ({ children }) => {
       getMessage(threadId);
     }
 
-    // Mark app as mounted for this session
-    sessionStorage.setItem("appMounted", "true");
+    // If "justMounted", upgrade it to "true" for next refresh
+    if (appMounted === "justMounted") {
+      sessionStorage.setItem("appMounted", "true");
+    }
   }, [isConnected, threadId, location.pathname, getMessage]);
 
   useEffect(() => {
     if (isConnected) getUserTokenUsage();
-  }, [isConnected]);
+  }, [isConnected, getUserTokenUsage]);
 
+  useEffect(() => {
+    if (location.pathname === "/") {
+      setMessages([]);
+      setActiveDocuments([]);
+    }
+  }, [location.pathname]);
   return (
     <WebSocketContext.Provider
       value={{
         messages,
         setMessages,
+        systemMessages,
+        pushSystemMessage,
         inputMessage,
         setInputMessage,
         isLoading,
