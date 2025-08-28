@@ -82,13 +82,26 @@ export const WebSocketProvider = ({ children }) => {
     }
   };
 
+  const addLoader = useCallback((id, content = "⏳ Processing...") => {
+    setMessages((prev) => [
+      ...prev,
+      { id, type: "ai", content, isLoader: true, font: "italic" },
+    ]);
+  }, []);
+
+  const replaceLoader = useCallback((id, newMessage) => {
+    setMessages((prev) =>
+      prev.map((m) => (m.id === id && m.isLoader ? { ...newMessage, id } : m))
+    );
+  }, []);
+
   useEffect(() => {
     if (wsMessages?.length === 0) return;
     const msg = wsMessages[wsMessages.length - 1];
 
     // Ignore error messages on first mount
     if (msg?.type === "error" && messages.length === 0) {
-      console.log("Ignoring initial error on first mount:", msg);
+      // console.log("Ignoring initial error on first mount:", msg);
       return;
     }
 
@@ -111,7 +124,17 @@ export const WebSocketProvider = ({ children }) => {
     if (msg?.type === "response_message") {
       setActiveDocuments([]);
       setMessages([]);
+
       if (Array.isArray(msg.data)) {
+        setMessages([
+          {
+            type: "ai",
+            content: "Loading previous conversation...",
+            font: "italic",
+            isLoader: true,
+            threadId: msg.threadId,
+          },
+        ]);
         const restored = msg.data.map((m) => {
           if (m.role === "HUMAN" || m.type === "query" || m.type === "user") {
             return { type: "user", content: m.content };
@@ -141,6 +164,7 @@ export const WebSocketProvider = ({ children }) => {
                 type: "ai",
                 content: m.content,
                 chunks: m.chunks || [],
+                isLoader: false,
               };
             }
 
@@ -162,7 +186,9 @@ export const WebSocketProvider = ({ children }) => {
           return { type: "ai", content: m.content };
         });
 
-        setMessages(restored);
+        setTimeout(() => {
+          setMessages(restored);
+        }, 500);
       }
       return;
     }
@@ -175,42 +201,42 @@ export const WebSocketProvider = ({ children }) => {
       if (location.pathname === "/") {
         navigate(`/c/${msg.threadId}`);
       }
-
-      const ackMessage = {
+      const loaderId = `${msg.threadId}-ack`;
+      addLoader(loaderId, "⌛ Starting analysis...");
+      replaceLoader(loaderId, {
         type: "ai",
         content: msg.message || "Got your question, starting analysis...",
         font: "italic",
-      };
-
-      setMessages((prev) => [...prev, ackMessage]);
+      });
       return;
     }
 
     if (msg?.type === "response_clarification") {
       setIsLoading(false);
-      setMessages((prev) => [
-        ...prev,
-        { type: "ai", content: msg.message || "Clarifying response..." },
-      ]);
+      const loaderId = `${msg.threadId}-clarify`;
+      addLoader(loaderId, "🤔 Clarifying...");
+      replaceLoader(loaderId, {
+        type: "ai",
+        content: msg.message || "Clarifying response...",
+      });
       return;
     }
 
     if (msg?.type === "research_data") {
       setIsLoading(true);
-      setMessages((prev) => [
-        ...prev,
-        {
-          type: "ai",
-          content: msg.message || "Fetching and analyzing documents...",
-          font: "italic",
-        },
-      ]);
+      const loaderId = `${msg.threadId}-research`;
+      addLoader(loaderId, "🔍 Fetching and analyzing documents...");
+      replaceLoader(loaderId, {
+        type: "ai",
+        content: msg.message || "Fetching and analyzing documents...",
+        font: "italic",
+      });
       return;
     }
 
     if (msg?.type === "response_complete") {
       setIsLoading(false);
-
+      const loaderId = `${msg.threadId}-complete`;
       if (msg.message && typeof msg.message === "object") {
         const newSources = extractUniqueSourcesFromResponse(msg?.message);
         if (newSources.length > 0) {
@@ -227,30 +253,26 @@ export const WebSocketProvider = ({ children }) => {
           });
         }
 
-        setMessages((prev) => [
-          ...prev,
-          {
-            type: "ai",
-            content: msg.message?.generated_answer,
-            chunks: msg.message?.chunks || [],
-          },
-        ]);
+        replaceLoader(loaderId, {
+          type: "ai",
+          content: msg.message?.generated_answer,
+          chunks: msg.message?.chunks || [],
+        });
       } else if (typeof msg.message === "string") {
-        setMessages((prev) => [
-          ...prev,
-          {
-            type: "error",
-            content: msg.message, // show the error string from backend
-          },
-        ]);
+        replaceLoader(loaderId, {
+          type: "error",
+          content: msg.message || "Something went wrong, please try again.",
+        });
       }
     }
     if (msg?.type === "error") {
       setIsLoading(false);
-      setMessages((prev) => [
-        ...prev,
-        { type: "error", content: msg.message || "Error try after some time" },
-      ]);
+      const loaderId = `${msg.threadId}-error`;
+      addLoader(loaderId, " Processing...");
+      replaceLoader(loaderId, {
+        type: "error",
+        content: msg.message || "Error: try again later.",
+      });
       return;
     }
   }, [

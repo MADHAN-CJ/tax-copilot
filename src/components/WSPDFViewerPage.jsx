@@ -668,15 +668,20 @@ export default function PDFViewerPage() {
                   <div className="space-y-4">
                     {messages?.map((message, index) => (
                       <div key={index} className="space-y-4 ">
-                        {message?.type === "user" && (
+                        {message.isLoader ? (
+                          <div className="flex justify-start">
+                            <div className="text-gray-400 italic animate-pulse">
+                              {message.content}
+                            </div>
+                          </div>
+                        ) : message?.type === "user" ? (
                           <div className="flex justify-end">
                             <div className="bg-[#333234] text-white rounded-2xl rounded-br-md px-4 py-3 max-w-xs">
                               <p className="text-sm">{message.content}</p>
                             </div>
                           </div>
-                        )}{" "}
-                        {(message?.type === "error" ||
-                          message?.content?.includes('"type":"error"')) && (
+                        ) : message?.type === "error" ||
+                          message?.content?.includes('"type":"error"') ? (
                           <div className="flex justify-center">
                             <div className="bg-red-600 text-white rounded-md px-4 py-2 max-w-xs text-center">
                               <p className="text-sm font-medium">
@@ -694,8 +699,7 @@ export default function PDFViewerPage() {
                               </button>
                             </div>
                           </div>
-                        )}
-                        {message?.type === "ai" && (
+                        ) : message?.type === "ai" ? (
                           <div className="flex justify-start">
                             <div className="text-white border-b border-[#333234] mt-[10px] pb-[10px]">
                               <p className="text-sm leading-relaxed">
@@ -740,12 +744,15 @@ export default function PDFViewerPage() {
                                 )}
                             </div>
                           </div>
-                        )}
+                        ) : null}
                       </div>
                     ))}
 
                     {isLoading && (
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600 mt-3"></div>
+                      <div className="flex gap-5 text-[#5a5959] items-center">
+                        Generating response...
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600 mt-3"></div>
+                      </div>
                     )}
 
                     {/*  Scroll anchor */}

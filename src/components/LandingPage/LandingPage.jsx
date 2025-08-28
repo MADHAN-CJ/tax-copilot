@@ -33,12 +33,10 @@ const searchPrompts = [
 const totalTokenCount = "100000";
 export default function LandingPage() {
   const {
-    setMessages,
     inputMessage,
     setInputMessage,
     isLoading,
     handleSendMessage,
-    setActiveDocuments,
     handleInputKeyDown,
     tokenUsage,
     isSidebarOpen,
@@ -61,8 +59,6 @@ export default function LandingPage() {
   useEffect(() => {
     sessionStorage.setItem("appMounted", "false");
     sessionStorage.removeItem("appMounted");
-    // setMessages([]);
-    // setActiveDocuments([]);
     localStorage.removeItem("threadId");
   }, []);
 
@@ -155,7 +151,10 @@ export default function LandingPage() {
                           <li
                             className="hover:text-gray-300 cursor-pointer query-name"
                             key={uniqueQuery}
-                            onClick={() => navigate(`/c/${query?.id}`)}
+                            onClick={() => {
+                              sessionStorage.setItem("appMounted", "true");
+                              navigate(`/c/${query?.id}`);
+                            }}
                           >
                             {query?.initialMessage}
                           </li>
