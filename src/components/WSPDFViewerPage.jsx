@@ -666,87 +666,91 @@ export default function PDFViewerPage() {
               >
                 <div className="flex-1 p-6 overflow-auto pb-[120px] custom-scrollbar">
                   <div className="space-y-4">
-                    {messages?.map((message, index) => (
-                      <div key={index} className="space-y-4 ">
-                        {message.isLoader ? (
-                          <div className="flex justify-start">
-                            <div className="text-gray-400 italic animate-pulse">
-                              {message.content}
-                            </div>
-                          </div>
-                        ) : message?.type === "user" ? (
-                          <div className="flex justify-end">
-                            <div className="bg-[#333234] text-white rounded-2xl rounded-br-md px-4 py-3 max-w-xs">
-                              <p className="text-sm">{message.content}</p>
-                            </div>
-                          </div>
-                        ) : message?.type === "error" ||
-                          message?.content?.includes('"type":"error"') ? (
-                          <div className="flex justify-center">
-                            <div className="bg-red-600 text-white rounded-md px-4 py-2 max-w-xs text-center">
-                              <p className="text-sm font-medium">
+                    {messages?.map((message, index) => {
+                      console.log(JSON.stringify(message));
+                      return (
+                        <div key={index} className="space-y-4 ">
+                          {message.isLoader ? (
+                            <div className="flex justify-start">
+                              <div className="text-gray-400 italic animate-pulse">
                                 {message.content}
-                              </p>
-                              <button
-                                onClick={() => {
-                                  reconnect();
-                                  navigate("/");
-                                  window.location.reload();
-                                }}
-                                className="bg-white text-red-600 px-3 py-1 rounded text-xs font-medium hover:bg-gray-200 transition"
-                              >
-                                Retry Connection
-                              </button>
+                              </div>
                             </div>
-                          </div>
-                        ) : message?.type === "ai" ? (
-                          <div className="flex justify-start">
-                            <div className="text-white border-b border-[#333234] mt-[10px] pb-[10px]">
-                              <p className="text-sm leading-relaxed">
-                                {message?.font === "italic" ? (
-                                  <i>{message?.content}</i>
-                                ) : (
-                                  message.content
-                                )}
-                              </p>
-                              {message?.chunks &&
-                                message?.chunks?.length > 0 && (
-                                  <div className="mt-4 space-y-2">
-                                    <h4 className="text-xs font-medium text-gray-600 uppercase tracking-wider">
-                                      References
-                                    </h4>
-                                    <div className="flex flex-wrap gap-2">
-                                      {message.chunks.map(
-                                        (chunk, chunkIndex) => (
-                                          <Button
-                                            key={chunkIndex}
-                                            variant="outline"
-                                            size="sm"
-                                            className="text-xs h-6 px-2 border-[#333234] text-white "
-                                            onClick={() =>
-                                              handleReferenceClick(chunk)
-                                            }
-                                            title={`${
-                                              chunk.source
-                                            } - Page ${Math.floor(
-                                              chunk.page_start
-                                            )}`}
-                                          >
-                                            <ExternalLink className="w-3 h-3 mr-1" />
-                                            {chunk.source.replace(".pdf", "")}{" "}
-                                            p.
-                                            {Math.floor(chunk.page_start)}
-                                          </Button>
-                                        )
-                                      )}
+                          ) : message?.type === "user" ? (
+                            <div className="flex justify-end">
+                              <div className="bg-[#333234] text-white rounded-2xl rounded-br-md px-4 py-3 max-w-xs">
+                                <p className="text-sm">{message.content}</p>
+                              </div>
+                            </div>
+                          ) : message?.type === "error" ||
+                            message?.content?.includes('"type":"error"') ? (
+                            <div className="flex justify-center">
+                              <div className="bg-red-600 text-white rounded-md px-4 py-2 max-w-xs text-center">
+                                <p className="text-sm font-medium">
+                                  {message.message}
+                                  {JSON.stringify(message)}
+                                </p>
+                                <button
+                                  onClick={() => {
+                                    reconnect();
+                                    navigate("/");
+                                    window.location.reload();
+                                  }}
+                                  className="bg-white text-red-600 px-3 py-1 rounded text-xs font-medium hover:bg-gray-200 transition"
+                                >
+                                  Retry Connection
+                                </button>
+                              </div>
+                            </div>
+                          ) : message?.type === "ai" ? (
+                            <div className="flex justify-start">
+                              <div className="text-white border-b border-[#333234] mt-[10px] pb-[10px]">
+                                <p className="text-sm leading-relaxed">
+                                  {message?.font === "italic" ? (
+                                    <i>{message?.content}</i>
+                                  ) : (
+                                    message.content
+                                  )}
+                                </p>
+                                {message?.chunks &&
+                                  message?.chunks?.length > 0 && (
+                                    <div className="mt-4 space-y-2">
+                                      <h4 className="text-xs font-medium text-gray-600 uppercase tracking-wider">
+                                        References
+                                      </h4>
+                                      <div className="flex flex-wrap gap-2">
+                                        {message.chunks.map(
+                                          (chunk, chunkIndex) => (
+                                            <Button
+                                              key={chunkIndex}
+                                              variant="outline"
+                                              size="sm"
+                                              className="text-xs h-6 px-2 border-[#333234] text-white "
+                                              onClick={() =>
+                                                handleReferenceClick(chunk)
+                                              }
+                                              title={`${
+                                                chunk.source
+                                              } - Page ${Math.floor(
+                                                chunk.page_start
+                                              )}`}
+                                            >
+                                              <ExternalLink className="w-3 h-3 mr-1" />
+                                              {chunk.source.replace(".pdf", "")}{" "}
+                                              p.
+                                              {Math.floor(chunk.page_start)}
+                                            </Button>
+                                          )
+                                        )}
+                                      </div>
                                     </div>
-                                  </div>
-                                )}
+                                  )}
+                              </div>
                             </div>
-                          </div>
-                        ) : null}
-                      </div>
-                    ))}
+                          ) : null}
+                        </div>
+                      );
+                    })}
 
                     {isLoading && (
                       <div className="flex gap-5 text-[#5a5959] items-center">

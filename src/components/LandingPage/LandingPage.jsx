@@ -24,8 +24,7 @@ import { onClickBounceEffect } from "../../utils/utils";
 
 //static prompts
 const searchPrompts = [
-  "Show Tesla’s net income trend over the last 5 years.",
-  "What was Amazon’s free cash flow in 2023?",
+  "Summarize Microsoft’s latest performance and key risks using the most recent 10-K, 10-Qs, and earnings calls. Highlight trends in revenue, expenses (CapEx, R&D), margins, and any management commentary on future outlook.",
   "Break down Meta’s operating expenses by category in 2024.",
   "Rank the companies by total assets in their latest filings.",
 ];

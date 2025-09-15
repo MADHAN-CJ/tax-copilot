@@ -72,8 +72,8 @@ export function useWebSocket(url) {
               break;
 
             case "error":
-              localStorage.removeItem("userId");
-              pushError(" Invalid user ID. Please retry.");
+              // localStorage.removeItem("userId");
+              pushError(data);
               break;
 
             case "ack":

@@ -102,6 +102,7 @@ export const WebSocketProvider = ({ children }) => {
     // Ignore error messages on first mount
     if (msg?.type === "error" && messages.length === 0) {
       // console.log("Ignoring initial error on first mount:", msg);
+
       return;
     }
 
@@ -120,7 +121,6 @@ export const WebSocketProvider = ({ children }) => {
     }
 
     // Handle restored conversation from refresh
-
     if (msg?.type === "response_message") {
       setActiveDocuments([]);
       setMessages([]);
@@ -253,6 +253,17 @@ export const WebSocketProvider = ({ children }) => {
           });
         }
 
+        if (msg.message?.generated_answer) {
+          setMessages((prev) => [
+            ...prev,
+            {
+              type: "ai",
+              content: msg.message.generated_answer,
+              chunks: msg.message?.chunks || [],
+            },
+          ]);
+        }
+
         replaceLoader(loaderId, {
           type: "ai",
           content: msg.message?.generated_answer,
@@ -265,6 +276,7 @@ export const WebSocketProvider = ({ children }) => {
         });
       }
     }
+
     if (msg?.type === "error") {
       setIsLoading(false);
       const loaderId = `${msg.threadId}-error`;
@@ -289,7 +301,7 @@ export const WebSocketProvider = ({ children }) => {
       .some((nav) => nav.type === "reload");
 
     if (
-      isPageReload &&
+      // isPageReload &&
       appMounted === "true" &&
       location.pathname.startsWith("/c/") &&
       threadId &&
