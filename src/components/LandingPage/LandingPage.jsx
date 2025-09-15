@@ -26,7 +26,7 @@ import { onClickBounceEffect } from "../../utils/utils";
 const searchPrompts = [
   "Summarize latest results & risks for Meta (10K, 10Q, calls).",
   "Compare Microsoft and Google on growth, CapEx, R&D, AI strategy (last 3Qs).",
-  "What guidance & outlook did Tesla give in last 4 calls? Check vs 10Qs.",
+  "Extract management guidance from last 4 quarterly calls for Tesla and check consistency with 10Qs.",
 ];
 
 const totalTokenCount = "100000";

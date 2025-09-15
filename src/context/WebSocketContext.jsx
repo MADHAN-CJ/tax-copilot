@@ -301,7 +301,7 @@ export const WebSocketProvider = ({ children }) => {
       .some((nav) => nav.type === "reload");
 
     if (
-      // isPageReload &&
+      isPageReload &&
       appMounted === "true" &&
       location.pathname.startsWith("/c/") &&
       threadId &&
