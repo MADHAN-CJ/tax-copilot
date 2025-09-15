@@ -24,9 +24,9 @@ import { onClickBounceEffect } from "../../utils/utils";
 
 //static prompts
 const searchPrompts = [
-  "Summarize Microsoft’s latest performance and key risks using the most recent 10-K, 10-Qs, and earnings calls. Highlight trends in revenue, expenses (CapEx, R&D), margins, and any management commentary on future outlook.",
-  "Break down Meta’s operating expenses by category in 2024.",
-  "Rank the companies by total assets in their latest filings.",
+  "Summarize latest results & risks for Meta (10K, 10Q, calls).",
+  "Compare Microsoft and Google on growth, CapEx, R&D, AI strategy (last 3Qs).",
+  "What guidance & outlook did Tesla give in last 4 calls? Check vs 10Qs.",
 ];
 
 const totalTokenCount = "100000";

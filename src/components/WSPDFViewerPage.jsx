@@ -667,7 +667,6 @@ export default function PDFViewerPage() {
                 <div className="flex-1 p-6 overflow-auto pb-[120px] custom-scrollbar">
                   <div className="space-y-4">
                     {messages?.map((message, index) => {
-                      console.log(JSON.stringify(message));
                       return (
                         <div key={index} className="space-y-4 ">
                           {message.isLoader ? (
