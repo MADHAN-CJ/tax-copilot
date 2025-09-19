@@ -84,6 +84,7 @@ export const WebSocketProvider = ({ children }) => {
     if (!inputMessage.trim() || isLoading) return;
 
     const userMessage = { type: "user", content: inputMessage };
+    setActiveDocuments([]);
     setMessages([userMessage]);
     setInputMessage("");
     setIsLoading(true);
