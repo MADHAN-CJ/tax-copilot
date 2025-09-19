@@ -39,9 +39,11 @@ export default function PDFViewerPage() {
   const [documentStates, setDocumentStates] = useState({}); // Store state for each document
   const [pendingScrollActions, setPendingScrollActions] = useState({});
   const [searchValue, setSearchValue] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
 
   const messagesEndRef = useRef(null);
   const location = useLocation();
+
   const {
     messages,
     inputMessage,
@@ -310,9 +312,7 @@ export default function PDFViewerPage() {
     }
   }, [messages]);
 
-  const [debouncedSearch, setDebouncedSearch] = useState("");
-
-  // debounce effect
+  // debounce effect for thread search
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedSearch(searchValue?.toLowerCase());
@@ -352,6 +352,7 @@ export default function PDFViewerPage() {
       setMessages([]);
     }
   }, [location.pathname]);
+
   return (
     <div className="h-screen bg-[#151415]  flex flex-col overflow-hidden">
       <StylesLandingPageHeader>
@@ -405,7 +406,7 @@ export default function PDFViewerPage() {
                     </div>
                     <div className="token-numbers">
                       <p>
-                        {tokenUsage
+                        {tokenUsage?.data?.userData?.tokensUsed
                           ? tokenUsage?.data?.userData?.tokensUsed
                           : "0"}
                       </p>
@@ -681,8 +682,7 @@ export default function PDFViewerPage() {
                                 <p className="text-sm">{message.content}</p>
                               </div>
                             </div>
-                          ) : message?.type === "error" ||
-                            message?.content?.includes('"type":"error"') ? (
+                          ) : message?.type === "error" ? (
                             <div className="flex justify-center">
                               <div className="bg-red-600 text-white rounded-md px-4 py-2 max-w-xs text-center">
                                 <p className="text-sm font-medium">

@@ -1,6 +1,4 @@
-// src/hooks/useWebSocket.js
 import { useEffect, useRef, useState, useCallback } from "react";
-import { useSocketContext } from "../context/WebSocketContext";
 
 export function useWebSocket(url) {
   const [messages, setMessages] = useState([]);
@@ -13,6 +11,9 @@ export function useWebSocket(url) {
   const retryAttemptRef = useRef(0);
   const reconnectTimeoutRef = useRef(null);
 
+  //retry number
+  const MAX_RETRIES = 5;
+
   const pushMessage = useCallback((msg) => {
     setMessages((prev) => [...prev, msg]);
   }, []);
@@ -24,6 +25,35 @@ export function useWebSocket(url) {
     [pushMessage]
   );
 
+  //reconnect to  websocket
+  const scheduleReconnect = useCallback(
+    (connectFn) => {
+      retryAttemptRef.current += 1;
+
+      if (retryAttemptRef.current > MAX_RETRIES) {
+        pushError(
+          "Unable to reconnect after multiple attempts. Please refresh the page."
+        );
+        return;
+      }
+
+      const delay = Math.min(1000 * 2 ** retryAttemptRef.current, 30000); // max 30s
+
+      reconnectTimeoutRef.current = setTimeout(() => {
+        connectFn();
+      }, delay);
+
+      pushMessage({
+        type: "system",
+        content: `Connection lost. Retrying in ${delay / 1000}s... (Attempt ${
+          retryAttemptRef.current
+        }/${MAX_RETRIES})`,
+      });
+    },
+    [pushMessage, pushError]
+  );
+
+  //connect to websocket
   const connect = useCallback(
     (isRetry = false) => {
       if (socketRef.current) {
@@ -43,13 +73,6 @@ export function useWebSocket(url) {
                 : { type: "new_connection" }
             )
           );
-          retryAttemptRef.current = 0;
-          if (isRetry) {
-            setMessages((prev) => [
-              ...prev,
-              { type: "system", content: "Reconnected to server." },
-            ]);
-          }
         } catch {
           pushError(" Failed to establish connection.");
         }
@@ -64,16 +87,20 @@ export function useWebSocket(url) {
               if (data.userId) {
                 localStorage.setItem("userId", data.userId);
                 setIsConnected(true);
+
+                //confirm reconnection to websocket
+                if (isRetry) {
+                  pushMessage({
+                    type: "system",
+                    content: "Reconnected to server.",
+                  });
+                }
+                retryAttemptRef.current = 0;
               }
               break;
 
             case "response_userdata":
               setTokenUsage(data);
-              break;
-
-            case "error":
-              // localStorage.removeItem("userId");
-              pushError(data);
               break;
 
             case "ack":
@@ -90,11 +117,15 @@ export function useWebSocket(url) {
             case "response_clarification":
             case "research_data":
             case "response_complete":
+            case "error":
               pushMessage(data);
               break;
 
             default:
-              pushError(` Unknown message type: ${data.type}`);
+              pushMessage({
+                type: data.type,
+                content: data.message || "WebSocket connection established",
+              });
               break;
           }
         } catch (err) {
@@ -105,17 +136,9 @@ export function useWebSocket(url) {
 
       socket.onclose = () => {
         setIsConnected(false);
-        console.log("Disconnected from websocket");
 
         // Exponential backoff reconnect
-        retryAttemptRef.current += 1;
-        const delay = Math.min(1000 * 2 ** retryAttemptRef.current, 30000); // max 30s
-        reconnectTimeoutRef.current = setTimeout(() => connect(true), delay);
-
-        pushMessage({
-          type: "system",
-          content: ` Connection lost. Retrying in ${delay / 1000}s...`,
-        });
+        scheduleReconnect(() => connect(true));
       };
 
       socket.onerror = (err) => {
@@ -124,7 +147,7 @@ export function useWebSocket(url) {
         pushError(" Connection error. Please retry.");
       };
     },
-    [url, pushMessage, pushError]
+    [url, pushMessage, pushError, scheduleReconnect]
   );
 
   useEffect(() => {

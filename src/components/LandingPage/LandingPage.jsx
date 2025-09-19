@@ -35,7 +35,7 @@ export default function LandingPage() {
     inputMessage,
     setInputMessage,
     isLoading,
-    handleSendMessage,
+    handleLandingPageSendMessage,
     handleInputKeyDown,
     tokenUsage,
     isSidebarOpen,
@@ -99,7 +99,7 @@ export default function LandingPage() {
               initial={false}
               animate={{ width: isSidebarOpen ? 220 : 0 }}
               transition={{ type: "tween", duration: 0.3 }}
-              className=" bg-[#1c1b1d]  overflow-hidden"
+              className=" bg-[#1c1b1d]  overflow-hidden rounded-tl-md"
             >
               {isSidebarOpen && (
                 <div>
@@ -122,7 +122,7 @@ export default function LandingPage() {
                     </div>
                     <div className="token-numbers">
                       <p>
-                        {tokenUsage
+                        {tokenUsage?.data?.userData?.tokensUsed
                           ? tokenUsage?.data?.userData?.tokensUsed
                           : "0"}
                       </p>
@@ -166,7 +166,7 @@ export default function LandingPage() {
                 </div>
               )}
             </motion.aside>
-            <StylesLandingPageBodyWrapper>
+            <StylesLandingPageBodyWrapper $isSidebarOpen={isSidebarOpen}>
               <div className="section left-part">
                 <div className="left-part-header">
                   <div className="left-part-header-left"></div>
@@ -196,7 +196,7 @@ export default function LandingPage() {
                       })}
                     </div>
                     <div className="search-container">
-                      <form onSubmit={handleSendMessage}>
+                      <form onSubmit={handleLandingPageSendMessage}>
                         <textarea
                           placeholder="Start typing..."
                           value={inputMessage}

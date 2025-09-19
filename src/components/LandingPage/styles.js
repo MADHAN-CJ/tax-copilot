@@ -50,6 +50,8 @@ export const StylesLandingPageBodyWrapper = styled.div`
   flex: 1;
   overflow: hidden;
   background-color: #1c1b1d;
+  border-top-left-radius: ${({ $isSidebarOpen }) =>
+    $isSidebarOpen ? "0px" : "10px"};
 
   .section {
     flex: 1;

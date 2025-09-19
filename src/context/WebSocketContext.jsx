@@ -20,17 +20,20 @@ export const WebSocketProvider = ({ children }) => {
     ? location.pathname.split("/c/")[1]?.split("/")[0] || null
     : null;
 
+  //document states
   const [activeDocuments, setActiveDocuments] = useState([]);
   const [activeTabIndex, setActiveTabIndex] = useState(0);
 
+  //chat message states
   const [messages, setMessages] = useState([]);
   const [systemMessages, setSystemMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  //sidebar
+  //sidebar state
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
+  //get data from the useWebSocket hook
   const {
     sendMessage,
     getMessage,
@@ -49,6 +52,7 @@ export const WebSocketProvider = ({ children }) => {
     setSystemMessages((prev) => [...prev, { id: Date.now(), ...msg }]);
   }, []);
 
+  // get documents from the thread response
   const extractUniqueSourcesFromResponse = useCallback((apiResponse) => {
     if (!apiResponse?.chunks || !Array.isArray(apiResponse.chunks)) return [];
     const uniqueSources = new Set();
@@ -62,7 +66,7 @@ export const WebSocketProvider = ({ children }) => {
     }));
   }, []);
 
-  //User sends a message
+  //ask prompt functionality in Pdf viewer page
   const handleSendMessage = async (event) => {
     if (event) event.preventDefault();
     if (!inputMessage.trim() || isLoading) return;
@@ -74,6 +78,19 @@ export const WebSocketProvider = ({ children }) => {
     sendMessage(inputMessage, threadId);
   };
 
+  //ask prompt functionality in landing page
+  const handleLandingPageSendMessage = async (event) => {
+    if (event) event.preventDefault();
+    if (!inputMessage.trim() || isLoading) return;
+
+    const userMessage = { type: "user", content: inputMessage };
+    setMessages([userMessage]);
+    setInputMessage("");
+    setIsLoading(true);
+    sendMessage(inputMessage, threadId);
+  };
+
+  //allow user to submit on clicking on enter and go to next line when pressed the shift enter
   const handleInputKeyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -82,6 +99,7 @@ export const WebSocketProvider = ({ children }) => {
     }
   };
 
+  //add a placeholder text while loading the response
   const addLoader = useCallback((id, content = "⏳ Processing...") => {
     setMessages((prev) => [
       ...prev,
@@ -89,6 +107,7 @@ export const WebSocketProvider = ({ children }) => {
     ]);
   }, []);
 
+  //replace loader with the original content
   const replaceLoader = useCallback((id, newMessage) => {
     setMessages((prev) =>
       prev.map((m) => (m.id === id && m.isLoader ? { ...newMessage, id } : m))
@@ -100,11 +119,10 @@ export const WebSocketProvider = ({ children }) => {
     const msg = wsMessages[wsMessages.length - 1];
 
     // Ignore error messages on first mount
-    if (msg?.type === "error" && messages.length === 0) {
-      // console.log("Ignoring initial error on first mount:", msg);
-
-      return;
-    }
+    // if (msg?.type === "error" && messages.length === 0) {
+    //   // console.log("Ignoring initial error on first mount:", msg);
+    //   return;
+    // }
 
     // Only process allowed live message types
     if (
@@ -349,6 +367,7 @@ export const WebSocketProvider = ({ children }) => {
         setIsSidebarOpen,
         isConnected,
         getUserTokenUsage,
+        handleLandingPageSendMessage,
       }}
     >
       {children}
