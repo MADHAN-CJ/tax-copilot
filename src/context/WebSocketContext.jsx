@@ -42,7 +42,7 @@ export const WebSocketProvider = ({ children }) => {
     isConnected,
     getUserTokenUsage,
     tokenUsage,
-  } = useWebSocket("wss://api.bookshelf.diy/retrieve/ws");
+  } = useWebSocket("wss://api.bookshelf.diy/legal/retrieve/ws");
 
   // refs
   const lastAckId = useRef(null);

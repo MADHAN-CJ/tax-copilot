@@ -30,9 +30,10 @@ const totalTokenCount = "100000";
 //highlight
 const backendRanges = [
   {
-    bbox: [67.44, 718.55, 568.03, 731.83],
-    page_start: 770,
-    page_end: 772,
+    char_start: 0,
+    char_end: 1267,
+    page_start: 1,
+    page_end: 2,
   },
 ];
 
@@ -49,8 +50,14 @@ export default function PDFViewerPage() {
   const [searchValue, setSearchValue] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   //highlight
-  const [yFlipNeeded, setYFlipNeeded] = useState(null);
-  const [viewports, setViewports] = useState({});
+  const [charBoxes, setCharBoxes] = useState({
+    char_end: 1278,
+    char_start: 0,
+    line_end: 34,
+    line_start: 1,
+    page_end: 2,
+    page_start: 1,
+  });
 
   const messagesEndRef = useRef(null);
   const location = useLocation();
@@ -365,95 +372,148 @@ export default function PDFViewerPage() {
   }, [location.pathname]);
 
   //highlight function
-  // detect if Y-axis flip needed
+
+  const [yFlipNeeded, setYFlipNeeded] = useState(null); // null = unknown, true = flip, false = no flip
+
   const detectYDirection = (viewport, items) => {
     if (!items.length) return;
+
+    // Take first item
     const item = items[0];
     const tx = pdfjs.Util.transform(viewport.transform, item.transform);
     const y = tx[5];
-    setYFlipNeeded(y < viewport.height / 2); // true = flip, false = no flip
-  };
 
-  // transform bbox to DOM coordinates
-  const transformBbox = (bbox, viewport) => {
-    const [x1, y1, x2, y2] = bbox;
-    const left = x1;
-    const width = x2;
-    // const top = y1;
-    // const height = y2;
-    let top, height;
-    if (yFlipNeeded) {
-      // PDF bottom-left → DOM top-left
-      top = viewport.height - y2;
-      height = y2 - y1;
+    // Heuristic: if y is near the bottom but text renders at top, flip is needed
+    // PDF.js usually gives baseline near page height when text is at top
+    if (y < viewport.height / 2) {
+      // small y → text at bottom → DOM top should be large → flip needed
+      setYFlipNeeded(true);
     } else {
-      // Already top-left origin
-      top = y1;
-      height = y2 - y1;
+      setYFlipNeeded(false);
     }
-
-    return { left, top, width, height };
   };
 
-  //  highlights for a page
-  const renderBoundingHighlights = (pageNum, viewport, ranges) => {
-    return ranges.flatMap((r, ri) => {
-      if (pageNum < r.page_start || pageNum > r.page_end) return [];
-
-      const [x0, y0, x1, y1] = r.bbox;
-
-      // full page size in viewport coords
-      const pageWidth = viewport.width;
-      const pageHeight = viewport.height;
-
-      let box;
-      if (pageNum === r.page_start && pageNum === r.page_end) {
-        // same-page case: exact bbox only
-        box = [x0, y0, x1, y1];
-      } else if (pageNum === r.page_start) {
-        // from start bbox → bottom of page
-        box = [x0, y0, pageWidth, pageHeight];
-      } else if (pageNum === r.page_end) {
-        // from top of page → end bbox
-        box = [0, 0, x1, y1];
-      } else {
-        // full page for middle pages
-        box = [0, 0, pageWidth, pageHeight];
-      }
-
-      const { left, top, width, height } = transformBbox(box, viewport);
-      return (
-        <div
-          key={`hl-${pageNum}-${ri}`}
-          style={{
-            position: "absolute",
-            left,
-            top,
-            width,
-            height,
-            backgroundColor: "rgba(255, 255, 0, 0.4)",
-            pointerEvents: "none",
-          }}
-        />
-      );
-    });
-  };
-
-  // handle page load
-  const handlePageLoad = async (page, pageNumber) => {
-    const viewport = page.getViewport({
-      scale: pdfWidth / page.getViewport({ scale: 1 }).width,
-    });
+  const handleGetCharBoxes = async (docId, page, pageNum, scale) => {
+    const textContent = await page.getTextContent();
+    const viewport = page.getViewport({ scale });
 
     if (yFlipNeeded === null) {
-      const textContent = await page.getTextContent();
       detectYDirection(viewport, textContent.items);
     }
 
-    setViewports((prev) => ({
+    const boxes = [];
+    let fullText = "";
+
+    textContent.items.forEach((item) => {
+      const tx = pdfjs.Util.transform(viewport.transform, item.transform);
+      const x = tx[4];
+      const y = tx[5];
+      const width = item.width * scale;
+      const height = item.height * scale;
+      console.log(x, y, width, height);
+      for (let i = 0; i < item.str.length; i++) {
+        const char = item.str[i];
+        fullText += char;
+
+        let top;
+        if (yFlipNeeded) {
+          // ✅ flip PDF bottom-left → DOM top-left
+          top = viewport.height - y;
+        } else {
+          // ✅ already top-left
+          top = y - height;
+        }
+
+        boxes.push({
+          char,
+          left: x + (i * width) / item.str.length,
+          top,
+          width: width / item.str.length,
+          height,
+        });
+      }
+    });
+
+    setCharBoxes((prev) => ({
       ...prev,
-      [pageNumber]: viewport,
+      [docId]: {
+        ...(prev[docId] || {}),
+        [pageNum]: {
+          text: fullText,
+          boxes,
+          length: fullText.length,
+        },
+      },
     }));
+  };
+
+  const getPageRangeFromGlobal = (docId, ranges) => {
+    const pages = charBoxes[docId];
+    if (!pages) return {};
+
+    // Build cumulative char offsets
+    const pageOrder = Object.keys(pages)
+      .map(Number)
+      .sort((a, b) => a - b);
+
+    let cumulative = 0;
+    const offsets = {};
+    pageOrder.forEach((p) => {
+      const len = pages[p].length;
+      offsets[p] = { start: cumulative, end: cumulative + len - 1 };
+      cumulative += len;
+    });
+
+    // Map global ranges into per-page
+    const perPage = {};
+    ranges.forEach((r, ri) => {
+      pageOrder.forEach((p) => {
+        const { start, end } = offsets[p];
+        const overlapStart = Math.max(start, r.char_start);
+        const overlapEnd = Math.min(end, r.char_end);
+
+        if (overlapStart <= overlapEnd) {
+          const localStart = overlapStart - start;
+          const localEnd = overlapEnd - start;
+
+          if (!perPage[p]) perPage[p] = [];
+          perPage[p].push({ ...r, char_start: localStart, char_end: localEnd });
+        }
+      });
+    });
+
+    return perPage; // { pageNum: [local ranges] }
+  };
+
+  const renderBoundingHighlights = (docId, pageNum, globalRanges) => {
+    const pageData = charBoxes?.[docId]?.[pageNum];
+    if (!pageData) return null;
+
+    // Convert global → local for this page
+    const perPageRanges =
+      getPageRangeFromGlobal(docId, globalRanges)[pageNum] || [];
+
+    return perPageRanges.flatMap((r, ri) =>
+      pageData.boxes
+        .map((box, idx) => {
+          if (idx < r.char_start || idx > r.char_end) return null;
+          return (
+            <div
+              key={`hl-${docId}-${pageNum}-${ri}-${idx}`}
+              style={{
+                position: "absolute",
+                left: box.left,
+                top: box.top,
+                width: box.width,
+                height: box.height,
+                backgroundColor: "rgba(255, 255, 0, 0.4)",
+                pointerEvents: "none",
+              }}
+            />
+          );
+        })
+        .filter(Boolean)
+    );
   };
 
   return (
@@ -734,14 +794,18 @@ export default function PDFViewerPage() {
                                                   renderTextLayer={false}
                                                   renderAnnotationLayer={false}
                                                   onLoadSuccess={(page) =>
-                                                    handlePageLoad(
+                                                    handleGetCharBoxes(
+                                                      doc.id,
                                                       page,
-                                                      pageNumber
+                                                      pageNumber,
+                                                      pdfWidth /
+                                                        page.getViewport({
+                                                          scale: 1,
+                                                        }).width
                                                     )
                                                   }
                                                 />
                                                 <div
-                                                  id={`${doc.id}-overlay-${pageNumber}`}
                                                   style={{
                                                     position: "absolute",
                                                     left: 0,
@@ -752,12 +816,11 @@ export default function PDFViewerPage() {
                                                     zIndex: 3,
                                                   }}
                                                 >
-                                                  {viewports[pageNumber] &&
-                                                    renderBoundingHighlights(
-                                                      pageNumber,
-                                                      viewports[pageNumber],
-                                                      backendRanges
-                                                    )}
+                                                  {renderBoundingHighlights(
+                                                    doc.id,
+                                                    pageNumber,
+                                                    backendRanges
+                                                  )}
                                                 </div>
                                               </div>
                                             </div>

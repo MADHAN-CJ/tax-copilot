@@ -20,11 +20,26 @@
   align-items: center;
 }
 
+.react-pdf__Page__textContent {
+  position: absolute !important;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  opacity: 0;
+  overflow: hidden;
+}
+
+.react-pdf__Page__textContent span {
+  background: transparent !important;
+  color: transparent !important;
+}
 /* Hide text and annotation layers to reduce console errors */
-.react-pdf__Page__textContent,
+/* .react-pdf__Page__textContent,
 .react-pdf__Page__annotations {
   display: none !important;
-}
+} */
 
 /* Smooth scrolling for PDF container */
 .pdf-container {
