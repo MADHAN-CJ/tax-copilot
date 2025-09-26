@@ -1,8 +1,14 @@
 import { ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
 import { Button } from "./ui/button";
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import { useWebSocket } from "../hooks/useWebSocket";
+import { useLocation, useNavigate } from "react-router";
+import { motion } from "framer-motion";
+import { onClickBounceEffect } from "../utils/utils";
+import { useSocketContext } from "../context/WebSocketContext";
+
+//styles
 import {
   StylesHistoryWrapper,
   StylesLandingPageHeader,
@@ -11,50 +17,49 @@ import {
   StylesSearchInput,
   StylesTokenUsage,
 } from "./LandingPage/styles";
-import { useLocation, useNavigate } from "react-router";
-import { motion } from "framer-motion";
 
 //images
 import Logo from "../assets/images/logo.png";
 import UpArrow from "../assets/images/up-arrow.svg";
-import { useSocketContext } from "../context/WebSocketContext";
 import SearchIcon from "../assets/images/search-icon.svg";
 import SidebarIcon from "../assets/images/sidebar-icon.svg";
 import NewChatButton from "../assets/images/new-chat-button.svg";
-import { onClickBounceEffect } from "../utils/utils";
 
 // Configure PDF.js worker - simple local approach
 pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.js";
 
 const totalTokenCount = "100000";
-//highlight
-const backendRanges = [
-  {
-    bbox: [67.44, 718.55, 568.03, 731.83],
-    page_start: 770,
-    page_end: 772,
-  },
-];
 
 export default function PDFViewerPage() {
   const navigate = useNavigate();
-  const [sidebarWidth, setSidebarWidth] = useState("300"); // 24rem = 384px
-  const [isResizing, setIsResizing] = useState(false);
 
   // PDF state
+  const [sidebarWidth, setSidebarWidth] = useState("300");
+  const [isResizing, setIsResizing] = useState(false);
   const [activeTabIndex, setActiveTabIndex] = useState(0);
   const [pdfWidth, setPdfWidth] = useState(800);
   const [documentStates, setDocumentStates] = useState({}); // Store state for each document
   const [pendingScrollActions, setPendingScrollActions] = useState({});
   const [searchValue, setSearchValue] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  //highlight
-  const [yFlipNeeded, setYFlipNeeded] = useState(null);
-  const [viewports, setViewports] = useState({});
 
+  //highlight state
+  const [charBoxes, setCharBoxes] = useState({
+    x0: 67.43999481201172,
+    y0: 718.5479736328125,
+    x1: 568.2742309570312,
+    y1: 731.83197021484385,
+    page_start: 770,
+    page_end: 772,
+  });
+  const [yFlipNeeded, setYFlipNeeded] = useState(null);
+
+  //refs
   const messagesEndRef = useRef(null);
+
   const location = useLocation();
 
+  //context
   const {
     messages,
     inputMessage,
@@ -72,8 +77,10 @@ export default function PDFViewerPage() {
     setMessages,
   } = useSocketContext();
 
-  // WebSocket
-  const { reconnect } = useWebSocket("wss://api.bookshelf.diy/retrieve/ws");
+  // WebSocket connection
+  const { reconnect } = useWebSocket(
+    "wss://api.bookshelf.diy/legal/retrieve/ws"
+  );
 
   // Get current active document
   const getCurrentDocument = () => {
@@ -100,7 +107,11 @@ export default function PDFViewerPage() {
           // Document is loaded, switch tab and scroll immediately
           setActiveTabIndex(targetDocIndex);
           setTimeout(() => {
-            scrollToPageForDocument(targetDoc.id, targetPage);
+            scrollToPageForDocument(
+              targetDoc.id,
+              targetPage,
+              setDocumentStates
+            );
           }, 100);
         } else {
           // Document not loaded yet, set pending action
@@ -112,7 +123,7 @@ export default function PDFViewerPage() {
         }
       } else {
         // Same tab, just scroll
-        scrollToPageForDocument(targetDoc.id, targetPage);
+        scrollToPageForDocument(targetDoc.id, targetPage, setDocumentStates);
       }
     } else {
       // Fallback to current document
@@ -201,6 +212,7 @@ export default function PDFViewerPage() {
     );
   };
 
+  //sidebar resize
   useEffect(() => {
     let rafId;
 
@@ -213,16 +225,12 @@ export default function PDFViewerPage() {
 
       rafId = requestAnimationFrame(() => {
         const newWidth = window.innerWidth - e.clientX;
-        const clampedWidth = Math.max(300, Math.min(600, newWidth));
-        setSidebarWidth(clampedWidth);
+        setSidebarWidth(Math.max(300, Math.min(600, newWidth)));
       });
     };
 
     const handleMouseUp = () => {
       setIsResizing(false);
-      if (rafId) {
-        cancelAnimationFrame(rafId);
-      }
     };
 
     if (isResizing) {
@@ -241,31 +249,22 @@ export default function PDFViewerPage() {
     };
   }, [isResizing]);
 
-  // Update PDF width with debouncing to prevent constant re-rendering during resize
+  // Debounce PDF width on resize
   useEffect(() => {
-    let timeoutId;
-
     const updatePdfWidth = () => {
-      clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => {
-        const availableWidth = window.innerWidth - sidebarWidth - 100;
-        const newWidth = Math.min(availableWidth * 0.9, 900);
-
-        // Only update if there's a significant difference to prevent micro-updates
-        if (Math.abs(newWidth - pdfWidth) > 10) {
-          setPdfWidth(newWidth);
-        }
-      }, 100); // Wait 100ms after resize stops
+      const availableWidth = window.innerWidth - sidebarWidth - 100;
+      const newWidth = Math.min(availableWidth * 0.9, 900);
+      if (Math.abs(newWidth - pdfWidth) > 10) {
+        setPdfWidth(newWidth);
+      }
     };
 
     updatePdfWidth();
 
-    // Also listen to window resize
     window.addEventListener("resize", updatePdfWidth);
 
     return () => {
       window.removeEventListener("resize", updatePdfWidth);
-      clearTimeout(timeoutId);
     };
   }, [sidebarWidth, pdfWidth]);
 
@@ -312,6 +311,7 @@ export default function PDFViewerPage() {
     return () => observer.disconnect();
   }, [activeTabIndex, documentStates]);
 
+  //handle mouse down
   const handleMouseDown = () => {
     setIsResizing(true);
   };
@@ -332,17 +332,24 @@ export default function PDFViewerPage() {
     return () => clearTimeout(handler);
   }, [searchValue]);
 
-  const filteredThreads = tokenUsage?.data?.userThreadData
-    ?.filter((query) =>
-      query?.initialMessage?.toLowerCase().includes(debouncedSearch)
-    )
-    ?.sort(
-      (a, b) => new Date(b.messageCreatedAt) - new Date(a.messageCreatedAt)
-    );
+  //filter threads
+  const filteredThreads = useMemo(
+    () =>
+      tokenUsage?.data?.userThreadData
+        ?.filter((query) =>
+          query?.initialMessage?.toLowerCase().includes(debouncedSearch)
+        )
+        ?.sort(
+          (a, b) => new Date(b.messageCreatedAt) - new Date(a.messageCreatedAt)
+        ),
+    [tokenUsage, debouncedSearch]
+  );
+
   //progress bar data
   const usedTokens = tokenUsage?.data?.userData?.tokensUsed || 0;
   const progress = Math.min((usedTokens / totalTokenCount) * 100, 100);
 
+  //token usage
   useEffect(() => {
     if (isConnected) getUserTokenUsage();
   }, [isConnected, getUserTokenUsage]);
@@ -354,6 +361,7 @@ export default function PDFViewerPage() {
     }
   }, []);
 
+  //reset messages on reload or navigation
   useEffect(() => {
     const isPageReload = performance
       .getEntriesByType("navigation")
@@ -362,99 +370,245 @@ export default function PDFViewerPage() {
     if (!isPageReload) {
       setMessages([]);
     }
-  }, [location.pathname]);
+  }, [location.pathname, setMessages]);
 
   //highlight function
-  // detect if Y-axis flip needed
-  const detectYDirection = (viewport, items) => {
-    if (!items.length) return;
-    const item = items[0];
-    const tx = pdfjs.Util.transform(viewport.transform, item.transform);
-    const y = tx[5];
-    setYFlipNeeded(y < viewport.height / 2); // true = flip, false = no flip
-  };
-
-  // transform bbox to DOM coordinates
-  const transformBbox = (bbox, viewport) => {
-    const [x1, y1, x2, y2] = bbox;
-    const left = x1;
-    const width = x2;
-    // const top = y1;
-    // const height = y2;
-    let top, height;
-    if (yFlipNeeded) {
-      // PDF bottom-left → DOM top-left
-      top = viewport.height - y2;
-      height = y2 - y1;
-    } else {
-      // Already top-left origin
-      top = y1;
-      height = y2 - y1;
-    }
-
-    return { left, top, width, height };
-  };
-
-  //  highlights for a page
-  const renderBoundingHighlights = (pageNum, viewport, ranges) => {
-    return ranges.flatMap((r, ri) => {
-      if (pageNum < r.page_start || pageNum > r.page_end) return [];
-
-      const [x0, y0, x1, y1] = r.bbox;
-
-      // full page size in viewport coords
-      const pageWidth = viewport.width;
-      const pageHeight = viewport.height;
-
-      let box;
-      if (pageNum === r.page_start && pageNum === r.page_end) {
-        // same-page case: exact bbox only
-        box = [x0, y0, x1, y1];
-      } else if (pageNum === r.page_start) {
-        // from start bbox → bottom of page
-        box = [x0, y0, pageWidth, pageHeight];
-      } else if (pageNum === r.page_end) {
-        // from top of page → end bbox
-        box = [0, 0, x1, y1];
-      } else {
-        // full page for middle pages
-        box = [0, 0, pageWidth, pageHeight];
-      }
-
-      const { left, top, width, height } = transformBbox(box, viewport);
-      return (
-        <div
-          key={`hl-${pageNum}-${ri}`}
-          style={{
-            position: "absolute",
-            left,
-            top,
-            width,
-            height,
-            backgroundColor: "rgba(255, 255, 0, 0.4)",
-            pointerEvents: "none",
-          }}
-        />
-      );
-    });
-  };
-
-  // handle page load
-  const handlePageLoad = async (page, pageNumber) => {
-    const viewport = page.getViewport({
-      scale: pdfWidth / page.getViewport({ scale: 1 }).width,
-    });
-
-    if (yFlipNeeded === null) {
-      const textContent = await page.getTextContent();
-      detectYDirection(viewport, textContent.items);
-    }
-
-    setViewports((prev) => ({
+  // Detect PDF coordinate system direction (flip or not)
+  const detectYDirection = (docId, pageNum) => {
+    const boxes = charBoxes[docId]?.[pageNum];
+    if (!boxes || boxes.length < 2) return;
+    const firstY = boxes[0].y;
+    const lastY = boxes[boxes.length - 1].y;
+    const isFlipped = firstY > lastY;
+    setYFlipNeeded((prev) => ({
       ...prev,
-      [pageNumber]: viewport,
+      [docId]: { ...prev[docId], [pageNum]: isFlipped },
     }));
   };
+
+  // Extract per-character bounding boxes
+  const handleGetCharBoxes = async (docId, page, pageNum, scale) => {
+    const textContent = await page.getTextContent();
+    const viewport = page.getViewport({ scale });
+
+    if (!yFlipNeeded?.[docId]?.[pageNum]) {
+      detectYDirection(docId, pageNum);
+    }
+
+    const boxes = [];
+    let fullText = "";
+
+    textContent.items.forEach((item) => {
+      const tx = pdfjs.Util.transform(viewport.transform, item.transform);
+      const x = tx[4];
+      const y = tx[5];
+      const width = item.width * scale;
+      const height = item.height * scale;
+
+      for (const [i, char] of [...item.str].entries()) {
+        // const char = item.str[i];
+        fullText += char;
+
+        let top = yFlipNeeded?.[docId]?.[pageNum]
+          ? viewport.height - y
+          : y - height;
+
+        boxes.push({
+          char,
+          left: x + (i * width) / item.str.length,
+          top,
+          width: width / item.str.length,
+          height,
+          lineY: top + height / 2, // approx baseline for line grouping
+        });
+      }
+    });
+
+    setCharBoxes((prev) => ({
+      ...prev,
+      [docId]: {
+        ...(prev[docId] || {}),
+        [pageNum]: {
+          text: fullText,
+          boxes,
+          length: fullText.length,
+          viewportWidth: viewport.width,
+          viewportHeight: viewport.height,
+        },
+      },
+    }));
+  };
+
+  // Merge characters into line rectangles
+  const mergeBoxesIntoLines = (boxes) => {
+    if (!boxes?.length) return [];
+    const lineMap = new Map();
+    boxes.forEach((b) => {
+      const key = Math.round(b.lineY / 5) * 5; // cluster by Y
+      if (!lineMap.has(key)) lineMap.set(key, []);
+      lineMap.get(key).push(b);
+    });
+
+    const lineBoxes = [];
+    lineMap.forEach((line) => {
+      const x0 = Math.min(...line.map((b) => b.left));
+      const x1 = Math.max(...line.map((b) => b.left + b.width));
+      const y0 = Math.min(...line.map((b) => b.top));
+      const y1 = Math.max(...line.map((b) => b.top + b.height));
+      lineBoxes.push({
+        left: x0,
+        top: y0,
+        width: x1 - x0,
+        height: y1 - y0,
+        lineY: line[0].lineY,
+      });
+    });
+
+    return lineBoxes;
+  };
+
+  // Check if a box is inside a bbox
+  const withinBBox = (box, bbox) => {
+    return !(
+      box.left + box.width < bbox[0] ||
+      box.left > bbox[2] ||
+      box.top + box.height < bbox[1] ||
+      box.top > bbox[3]
+    );
+  };
+
+  // Render highlights given a logical bbox
+  const renderBoundingHighlights = (docId, pageNum, logicalRange) => {
+    const pageData = charBoxes?.[docId]?.[pageNum];
+    if (!pageData) return null;
+
+    const { x0, y0, x1, y1, page_start, page_end } = logicalRange;
+    const { viewportWidth, viewportHeight } = pageData;
+
+    // Convert logical bbox into DOM coords
+    const H = pageData.viewportHeight;
+    const y0_dom = yFlipNeeded ? H - y1 : y0;
+    const y1_dom = yFlipNeeded ? H - y0 : y1;
+
+    // PageBBox now enforces only vertical limits
+    let pageBBox;
+    if (page_start === page_end) {
+      pageBBox = [0, y0_dom, viewportWidth, y1_dom];
+    } else if (pageNum === page_start) {
+      pageBBox = [0, y0_dom, viewportWidth, viewportHeight];
+    } else if (pageNum === page_end) {
+      pageBBox = [0, 0, viewportWidth, y1_dom];
+    } else if (pageNum > page_start && pageNum < page_end) {
+      pageBBox = [0, 0, viewportWidth, viewportHeight];
+    } else {
+      return null;
+    }
+
+    // Candidate chars, then merge into lines
+    const candidateBoxes = pageData.boxes.filter((b) =>
+      withinBBox(b, pageBBox)
+    );
+    const lineBoxes = mergeBoxesIntoLines(candidateBoxes);
+
+    // Find first/last line for clipping
+    let firstLineY = null,
+      lastLineY = null;
+    if (pageNum === page_start && lineBoxes.length > 0) {
+      firstLineY = Math.min(...lineBoxes.map((b) => b.lineY));
+    }
+    if (pageNum === page_end && lineBoxes.length > 0) {
+      lastLineY = Math.max(...lineBoxes.map((b) => b.lineY));
+    }
+
+    return lineBoxes
+      .map((line, idx) => {
+        let { left, top, width, height, lineY } = line;
+
+        // Clip horizontally only for first line
+        if (
+          pageNum === page_start &&
+          firstLineY !== null &&
+          lineY === firstLineY
+        ) {
+          const cutoff = Math.max(left, x0);
+          width = width - (cutoff - left);
+          left = cutoff;
+          if (width <= 0) return null;
+        }
+
+        // Clip horizontally only for last line
+        if (pageNum === page_end && lastLineY !== null && lineY === lastLineY) {
+          const cutoff = Math.min(left + width, x1);
+          width = cutoff - left;
+          if (width <= 0) return null;
+        }
+
+        return (
+          <div
+            key={`hl-${docId}-${pageNum}-${idx}`}
+            style={{
+              position: "absolute",
+              left,
+              top,
+              width,
+              height,
+              backgroundColor: "rgba(142, 43, 254, 0.27)",
+              pointerEvents: "none",
+            }}
+          />
+        );
+      })
+      .filter(Boolean);
+  };
+
+  // const renderPageHighlight = (docId, pageNum, logicalRange) => {
+  //   const pageData = charBoxes?.[docId]?.[pageNum];
+  //   if (!pageData) return null;
+
+  //   const { x0, y0, x1, y1, page_start, page_end } = logicalRange;
+  //   const { viewportWidth, viewportHeight } = pageData;
+
+  //   let left, top, width, height;
+  //   if (page_start === page_end && pageNum === page_start) {
+  //     left = x0;
+  //     top = y0;
+  //     width = x1 - x0;
+  //     height = y1 - y0;
+  //   } else if (pageNum === page_start) {
+  //     left = x0;
+  //     top = y0;
+  //     width = x1 - x0;
+  //     height = viewportHeight;
+  //   } else if (pageNum === page_end) {
+  //     left = x0;
+  //     top = 0;
+  //     width = x1 - x0;
+  //     height = y1;
+  //   } else if (pageNum > page_start && pageNum < page_end) {
+  //     left = 0;
+  //     top = 0;
+  //     width = viewportWidth;
+  //     height = viewportHeight;
+  //   } else {
+  //     return null;
+  //   }
+  //   console.log(left, top, width, height, viewportHeight);
+
+  //   return (
+  //     <div
+  //       key={`hl-${docId}-${pageNum}`}
+  //       style={{
+  //         position: "absolute",
+  //         left,
+  //         top,
+  //         width,
+  //         height,
+  //         backgroundColor: "rgba(142, 43, 254, 0.27)",
+  //         pointerEvents: "none",
+  //       }}
+  //     />
+  //   );
+  // };
 
   return (
     <div className="h-screen bg-[#151415]  flex flex-col overflow-hidden">
@@ -470,9 +624,11 @@ export default function PDFViewerPage() {
           </button>
           <div className="w-[2px] bg-[#333234] h-[60px] mr-[20px]"></div>
 
-          <span className="logo-text">The Magnificent 7</span>
+          <span className="logo-text">
+            Your AI-powered research partner for every regulation.
+          </span>
         </div>
-        <span className="header-right">support@bookshelf.diy</span>
+        <span className="header-right">support@revise.network</span>
       </StylesLandingPageHeader>
       <div className="overflow-hidden bg-[#151415]">
         {/* Show full-width chat when no documents, split view when documents available */}
@@ -734,14 +890,18 @@ export default function PDFViewerPage() {
                                                   renderTextLayer={false}
                                                   renderAnnotationLayer={false}
                                                   onLoadSuccess={(page) =>
-                                                    handlePageLoad(
+                                                    handleGetCharBoxes(
+                                                      doc.id,
                                                       page,
-                                                      pageNumber
+                                                      pageNumber,
+                                                      pdfWidth /
+                                                        page.getViewport({
+                                                          scale: 1,
+                                                        }).width
                                                     )
                                                   }
                                                 />
                                                 <div
-                                                  id={`${doc.id}-overlay-${pageNumber}`}
                                                   style={{
                                                     position: "absolute",
                                                     left: 0,
@@ -752,12 +912,17 @@ export default function PDFViewerPage() {
                                                     zIndex: 3,
                                                   }}
                                                 >
-                                                  {viewports[pageNumber] &&
-                                                    renderBoundingHighlights(
-                                                      pageNumber,
-                                                      viewports[pageNumber],
-                                                      backendRanges
-                                                    )}
+                                                  {renderBoundingHighlights(
+                                                    doc.id,
+                                                    pageNumber,
+                                                    charBoxes
+                                                  )}
+
+                                                  {/* {renderPageHighlight(
+                                                    doc.id,
+                                                    pageNumber,
+                                                    charBoxes
+                                                  )} */}
                                                 </div>
                                               </div>
                                             </div>

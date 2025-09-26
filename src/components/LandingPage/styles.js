@@ -93,6 +93,35 @@ export const StylesLandingPageBodyWrapper = styled.div`
       display: flex;
       align-items: center;
       justify-content: center;
+      flex-direction: column;
+      gap: 47px;
+
+      .left-part-body-bottom {
+        max-width: 344px;
+
+        h1 {
+          color: #fff;
+          text-align: center;
+          font-family: "DM Sans";
+          font-size: 31px;
+          font-style: normal;
+          font-weight: 700;
+          line-height: normal;
+          letter-spacing: -0.62px;
+          margin-bottom: 8px;
+        }
+
+        p {
+          color: #fff;
+          text-align: center;
+          font-family: "DM Sans";
+          font-size: 14px;
+          font-style: normal;
+          font-weight: 400;
+          line-height: 18px; /* 128.571% */
+          letter-spacing: -0.28px;
+        }
+      }
     }
   }
 

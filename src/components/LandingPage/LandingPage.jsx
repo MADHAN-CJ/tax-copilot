@@ -24,9 +24,9 @@ import { onClickBounceEffect } from "../../utils/utils";
 
 //static prompts
 const searchPrompts = [
-  "Summarize latest results & risks for Meta (10K, 10Q, calls).",
-  "Compare Microsoft and Google on growth, CapEx, R&D, AI strategy (last 3Qs).",
-  "Extract management guidance from last 4 quarterly calls for Tesla and check consistency with 10Qs.",
+  "What are the deduction limits under Section 80D?",
+  "Transfer Pricing documentation thresholds?",
+  "What is FEMA ODI cap for unlisted entities?",
 ];
 
 const totalTokenCount = "100000";
@@ -85,9 +85,11 @@ export default function LandingPage() {
           </button>
           <div className="w-[2px] bg-[#333234] h-[60px] mr-[20px]"></div>
 
-          <span className="logo-text">The Magnificent 7</span>
+          <span className="logo-text">
+            Your AI-powered research partner for every regulation.
+          </span>
         </div>
-        <span className="header-right">support@bookshelf.diy</span>
+        <span className="header-right">support@revise.network</span>
       </StylesLandingPageHeader>
       <div className="overflow-hidden bg-[#151415]">
         <motion.div
@@ -174,8 +176,15 @@ export default function LandingPage() {
                 </div>
                 <div className="left-part-body">
                   <img src={Banner} alt="banner" loading="lazy" />
+                  <div className="left-part-body-bottom">
+                    <h1>Start with a question.</h1>
+                    <p>
+                      Ask in the chat. We’ll fetch the right document, highlight
+                      the exact text, and give you accurate answers you can
+                      trust, no hallucinations.
+                    </p>
+                  </div>
                 </div>
-                <div></div>
               </div>
               <div className="section right-part">
                 <p>Welcome,</p>
