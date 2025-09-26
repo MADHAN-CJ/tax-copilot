@@ -52,7 +52,7 @@ export default function PDFViewerPage() {
     page_start: 770,
     page_end: 772,
   });
-  const [yFlipNeeded, setYFlipNeeded] = useState(null);
+  const [yFlipNeeded, setYFlipNeeded] = useState({});
 
   //refs
   const messagesEndRef = useRef(null);
@@ -362,27 +362,30 @@ export default function PDFViewerPage() {
   }, []);
 
   //reset messages on reload or navigation
-  useEffect(() => {
-    const isPageReload = performance
-      .getEntriesByType("navigation")
-      .some((nav) => nav.type === "reload");
+  // useEffect(() => {
+  //   const isPageReload = performance
+  //     .getEntriesByType("navigation")
+  //     .some((nav) => nav.type === "reload");
 
-    if (!isPageReload) {
-      setMessages([]);
-    }
-  }, [location.pathname, setMessages]);
+  //   if (!isPageReload) {
+  //     setMessages([]);
+  //   }
+  // }, [location.pathname, setMessages]);
 
   //highlight function
   // Detect PDF coordinate system direction (flip or not)
   const detectYDirection = (docId, pageNum) => {
-    const boxes = charBoxes[docId]?.[pageNum];
-    if (!boxes || boxes.length < 2) return;
-    const firstY = boxes[0].y;
-    const lastY = boxes[boxes.length - 1].y;
-    const isFlipped = firstY > lastY;
+    const pageData = charBoxes[docId]?.[pageNum];
+    console.log(pageData, "pagedata");
+    if (!pageData?.boxes || pageData.boxes.length < 2) return;
+
+    const firstY = pageData.boxes[0].y; // raw PDF y
+    const lastY = pageData.boxes[pageData.boxes.length - 1].y;
+    const isFlipped = firstY > lastY; // true if coordinate system increases downward
+
     setYFlipNeeded((prev) => ({
-      ...prev,
-      [docId]: { ...prev[docId], [pageNum]: isFlipped },
+      ...(prev || {}),
+      [docId]: { ...(prev[docId] || {}), [pageNum]: isFlipped },
     }));
   };
 
@@ -417,9 +420,10 @@ export default function PDFViewerPage() {
           char,
           left: x + (i * width) / item.str.length,
           top,
+          y,
           width: width / item.str.length,
           height,
-          lineY: top + height / 2, // approx baseline for line grouping
+          lineY: top + height / 2,
         });
       }
     });
@@ -439,32 +443,49 @@ export default function PDFViewerPage() {
     }));
   };
 
-  // Merge characters into line rectangles
-  const mergeBoxesIntoLines = (boxes) => {
+  // Merge characters into line rectangles using lineY midpoint clustering
+  const mergeBoxesIntoLines = (boxes, tolerance = 3) => {
     if (!boxes?.length) return [];
+
     const lineMap = new Map();
+
     boxes.forEach((b) => {
-      const key = Math.round(b.lineY / 5) * 5; // cluster by Y
-      if (!lineMap.has(key)) lineMap.set(key, []);
-      lineMap.get(key).push(b);
+      // find an existing cluster within tolerance
+      let clusterKey = null;
+      for (let k of lineMap.keys()) {
+        if (Math.abs(k - b.lineY) <= tolerance) {
+          clusterKey = k;
+          break;
+        }
+      }
+
+      // if no cluster found, create a new one
+      if (clusterKey === null) clusterKey = b.lineY;
+
+      if (!lineMap.has(clusterKey)) lineMap.set(clusterKey, []);
+      lineMap.get(clusterKey).push(b);
     });
 
+    // build line rectangles
     const lineBoxes = [];
     lineMap.forEach((line) => {
       const x0 = Math.min(...line.map((b) => b.left));
       const x1 = Math.max(...line.map((b) => b.left + b.width));
       const y0 = Math.min(...line.map((b) => b.top));
       const y1 = Math.max(...line.map((b) => b.top + b.height));
+      const midY = line.reduce((sum, b) => sum + b.lineY, 0) / line.length;
+
       lineBoxes.push({
         left: x0,
         top: y0,
         width: x1 - x0,
         height: y1 - y0,
-        lineY: line[0].lineY,
+        lineY: midY,
       });
     });
 
-    return lineBoxes;
+    // keep them sorted top-to-bottom
+    return lineBoxes.sort((a, b) => a.lineY - b.lineY);
   };
 
   // Check if a box is inside a bbox
@@ -679,7 +700,11 @@ export default function PDFViewerPage() {
 
                   <StylesNewChatButton
                     onClick={(event) =>
-                      onClickBounceEffect(event, 150, () => navigate("/"))
+                      onClickBounceEffect(event, 150, () => {
+                        setMessages([]);
+                        setActiveDocuments([]);
+                        navigate("/");
+                      })
                     }
                   >
                     <img src={NewChatButton} alt="chat" /> New Chat
@@ -700,7 +725,11 @@ export default function PDFViewerPage() {
                                   : ""
                               }`}
                               key={uniqueQuery}
-                              onClick={() => navigate(`/c/${query?.id}`)}
+                              onClick={() => {
+                                setMessages([]);
+                                setActiveDocuments([]);
+                                navigate(`/c/${query?.id}`);
+                              }}
                             >
                               {query?.initialMessage}
                             </li>

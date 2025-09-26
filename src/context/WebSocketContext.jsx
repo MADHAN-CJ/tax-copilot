@@ -141,10 +141,10 @@ export const WebSocketProvider = ({ children }) => {
 
     // Handle restored conversation from refresh
     if (msg?.type === "response_message") {
-      setActiveDocuments([]);
-      setMessages([]);
-
-      if (Array.isArray(msg.data)) {
+      if (Array.isArray(msg.data) && msg.data.length > 0) {
+        //clear messages and docs
+        setMessages([]);
+        setActiveDocuments([]);
         setMessages([
           {
             type: "ai",
@@ -154,6 +154,7 @@ export const WebSocketProvider = ({ children }) => {
             threadId: msg.threadId,
           },
         ]);
+
         const restored = msg.data.map((m) => {
           if (m.role === "HUMAN" || m.type === "query" || m.type === "user") {
             return { type: "user", content: m.content };
@@ -207,7 +208,7 @@ export const WebSocketProvider = ({ children }) => {
 
         setTimeout(() => {
           setMessages(restored);
-        }, 500);
+        }, 200);
       }
       return;
     }
@@ -315,16 +316,12 @@ export const WebSocketProvider = ({ children }) => {
 
   useEffect(() => {
     const appMounted = sessionStorage.getItem("appMounted");
-    const isPageReload = performance
-      .getEntriesByType("navigation")
-      .some((nav) => nav.type === "reload");
 
     if (
-      isPageReload &&
-      appMounted === "true" &&
-      location.pathname.startsWith("/c/") &&
       threadId &&
-      isConnected
+      isConnected &&
+      appMounted === "true" &&
+      location.pathname.startsWith("/c/")
     ) {
       getMessage(threadId);
     }
@@ -339,12 +336,12 @@ export const WebSocketProvider = ({ children }) => {
     if (isConnected) getUserTokenUsage();
   }, [isConnected, getUserTokenUsage]);
 
-  useEffect(() => {
-    if (location.pathname === "/") {
-      setMessages([]);
-      setActiveDocuments([]);
-    }
-  }, [location.pathname]);
+  // useEffect(() => {
+  //   if (location.pathname === "/") {
+  //     setMessages([]);
+  //     setActiveDocuments([]);
+  //   }
+  // }, [location.pathname]);
   return (
     <WebSocketContext.Provider
       value={{

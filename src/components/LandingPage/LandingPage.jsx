@@ -17,9 +17,9 @@ import SearchIcon from "../../assets/images/search-icon.svg";
 import NewChatButton from "../../assets/images/new-chat-button.svg";
 
 import { useSocketContext } from "../../context/WebSocketContext";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { onClickBounceEffect } from "../../utils/utils";
 
 //static prompts
@@ -40,8 +40,12 @@ export default function LandingPage() {
     tokenUsage,
     isSidebarOpen,
     setIsSidebarOpen,
+    setMessages,
+    setActiveDocuments,
+    setActiveTabIndex,
   } = useSocketContext();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [searchValue, setSearchValue] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -56,18 +60,40 @@ export default function LandingPage() {
   }, [searchValue]);
 
   useEffect(() => {
-    sessionStorage.setItem("appMounted", "false");
     sessionStorage.removeItem("appMounted");
     localStorage.removeItem("threadId");
   }, []);
 
-  const filteredThreads = tokenUsage?.data?.userThreadData
-    ?.filter((query) =>
-      query?.initialMessage?.toLowerCase().includes(debouncedSearch)
-    )
-    ?.sort(
-      (a, b) => new Date(b.messageCreatedAt) - new Date(a.messageCreatedAt)
-    );
+  useEffect(() => {
+    const isPageReload = performance
+      .getEntriesByType("navigation")
+      .some((nav) => nav.type === "reload");
+
+    if (location.pathname === "/") {
+      setMessages([]);
+      setActiveDocuments([]);
+      setActiveTabIndex(0);
+    }
+
+    if (isPageReload) {
+      setMessages([]);
+      setActiveDocuments([]);
+      setActiveTabIndex(0);
+    }
+  }, [location.pathname, setMessages, setActiveDocuments, setActiveTabIndex]);
+
+  const filteredThreads = useMemo(
+    () =>
+      tokenUsage?.data?.userThreadData
+        ?.filter((query) =>
+          query?.initialMessage?.toLowerCase().includes(debouncedSearch)
+        )
+        ?.sort(
+          (a, b) => new Date(b.messageCreatedAt) - new Date(a.messageCreatedAt)
+        ),
+    [tokenUsage, debouncedSearch]
+  );
+
   const usedTokens = tokenUsage?.data?.userData?.tokensUsed || 0;
   const progress = Math.min((usedTokens / totalTokenCount) * 100, 100);
 
@@ -138,7 +164,11 @@ export default function LandingPage() {
 
                   <StylesNewChatButton
                     onClick={(event) =>
-                      onClickBounceEffect(event, 150, () => navigate("/"))
+                      onClickBounceEffect(event, 150, () => {
+                        setMessages([]);
+                        setActiveDocuments([]);
+                        navigate("/");
+                      })
                     }
                   >
                     <img src={NewChatButton} alt="chat" /> New Chat
@@ -153,6 +183,8 @@ export default function LandingPage() {
                             className="hover:text-gray-300 cursor-pointer query-name"
                             key={uniqueQuery}
                             onClick={() => {
+                              setMessages([]);
+                              setActiveDocuments([]);
                               sessionStorage.setItem("appMounted", "true");
                               navigate(`/c/${query?.id}`);
                             }}
