@@ -34,7 +34,7 @@ export default function PDFViewerPage() {
   const navigate = useNavigate();
 
   // PDF state
-  const [sidebarWidth, setSidebarWidth] = useState("300");
+  const [sidebarWidth, setSidebarWidth] = useState("350");
   const [isResizing, setIsResizing] = useState(false);
   const [activeTabIndex, setActiveTabIndex] = useState(0);
   const [pdfWidth, setPdfWidth] = useState(800);
@@ -978,11 +978,15 @@ export default function PDFViewerPage() {
                   )}
                 </div>
               )}
-              <div
-                className="w-1 bg-[#333234] hover:bg-[grey] cursor-col-resize transition-colors select-none"
-                onMouseDown={handleMouseDown}
-                style={{ userSelect: "none" }}
-              />
+
+              {activeDocuments?.length > 0 && (
+                <div
+                  className="w-1 bg-[#333234] hover:bg-[grey] cursor-col-resize transition-colors select-none"
+                  onMouseDown={handleMouseDown}
+                  style={{ userSelect: "none" }}
+                />
+              )}
+
               <div
                 className="bg-[#1C1B1D] border-l border-[#333234] flex flex-col flex-shrink-0  "
                 style={{
@@ -993,11 +997,11 @@ export default function PDFViewerPage() {
                   transition: "0.3s  linear",
                 }}
               >
-                <div className="flex-1 p-6 overflow-auto pb-[120px] custom-scrollbar">
-                  <div className="space-y-4">
+                <div className="flex-1 p-6 overflow-y-auto overflow-x-hidden pb-[120px] custom-scrollbar">
+                  <div className="space-y-4 ">
                     {messages?.map((message, index) => {
                       return (
-                        <div key={index} className="space-y-4 ">
+                        <div key={index} className="space-y-4">
                           {message.isLoader ? (
                             <div className="flex justify-start">
                               <div className="text-gray-400 italic animate-pulse">
@@ -1031,8 +1035,8 @@ export default function PDFViewerPage() {
                             </div>
                           ) : message?.type === "ai" ? (
                             <div className="flex justify-start">
-                              <div className="text-white border-b border-[#333234] mt-[10px] pb-[10px]">
-                                <p className="text-sm leading-relaxed">
+                              <div className="text-white border-b border-[#333234] mt-[10px] pb-[10px]  overflow-hidden">
+                                <p className="text-sm leading-relaxed break-word whitespace-pre-wrap">
                                   {message?.font === "italic" ? (
                                     <i>{message?.content}</i>
                                   ) : (
@@ -1063,7 +1067,13 @@ export default function PDFViewerPage() {
                                               )}`}
                                             >
                                               <ExternalLink className="w-3 h-3 mr-1" />
-                                              {chunk.source.replace(".pdf", "")}{" "}
+                                              {chunk.source?.length < 30
+                                                ? chunk.source.replace(
+                                                    ".pdf",
+                                                    ""
+                                                  )
+                                                : chunk.source.slice(0, 27) +
+                                                  "..."}
                                               p.
                                               {Math.floor(chunk.page_start)}
                                             </Button>
@@ -1127,7 +1137,6 @@ export default function PDFViewerPage() {
               </div>
             </div>
           </div>
-          {/* )} */}
         </motion.div>
       </div>
     </div>
