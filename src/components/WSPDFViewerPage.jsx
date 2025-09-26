@@ -225,7 +225,7 @@ export default function PDFViewerPage() {
 
       rafId = requestAnimationFrame(() => {
         const newWidth = window.innerWidth - e.clientX;
-        setSidebarWidth(Math.max(300, Math.min(600, newWidth)));
+        setSidebarWidth(Math.max(350, Math.min(600, newWidth)));
       });
     };
 
