@@ -324,12 +324,6 @@ export const WebSocketProvider = ({ children }) => {
     if (isConnected) getUserTokenUsage();
   }, [isConnected, getUserTokenUsage]);
 
-  // useEffect(() => {
-  //   if (location.pathname === "/") {
-  //     setMessages([]);
-  //     setActiveDocuments([]);
-  //   }
-  // }, [location.pathname]);
   return (
     <WebSocketContext.Provider
       value={{
