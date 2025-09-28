@@ -3,8 +3,8 @@ import { StylesLandingPageHeader } from "../LandingPage/styles";
 
 //images
 import Logo from "../../assets/images/logo.png";
-import SidebarIcon from "../../assets/images/sidebar-icon.svg";
 import { useSocketContext } from "../../context/WebSocketContext";
+import { onClickBounceEffect } from "../../utils/utils";
 
 const Navbar = () => {
   //context
@@ -17,9 +17,30 @@ const Navbar = () => {
         <div className="w-[2px] bg-[#333234] h-[60px] ml-[20px]"></div>
         <button
           className="h-[60px] bg-[#151415] hover:bg-[#2a292b] transition p-[20px]"
-          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+          onClick={(event) =>
+            onClickBounceEffect(event, 150, () =>
+              setIsSidebarOpen(!isSidebarOpen)
+            )
+          }
         >
-          <img src={SidebarIcon} alt="sidebar" />
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <rect width="18" height="18" x="3" y="3" rx="2" />
+
+            <path
+              d="M3 5a2 2 0 0 1 2-2h4v18H5a2 2 0 0 1-2-2V5z"
+              fill={isSidebarOpen ? "white" : ""}
+            />
+          </svg>
         </button>
         <div className="w-[2px] bg-[#333234] h-[60px] mr-[20px]"></div>
 

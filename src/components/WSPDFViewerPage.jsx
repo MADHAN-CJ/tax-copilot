@@ -302,13 +302,6 @@ export default function PDFViewerPage() {
     }
   }, [messages]);
 
-  // mark app as "justMounted" on first entry
-  useEffect(() => {
-    if (!sessionStorage.getItem("appMounted")) {
-      sessionStorage.setItem("appMounted", "justMounted");
-    }
-  }, []);
-
   //highlight function
   // Detect PDF coordinate system direction (flip or not)
   const detectYDirection = (docId, pageNum) => {
