@@ -35,11 +35,6 @@
   background: transparent !important;
   color: transparent !important;
 }
-/* Hide text and annotation layers to reduce console errors */
-/* .react-pdf__Page__textContent,
-.react-pdf__Page__annotations {
-  display: none !important;
-} */
 
 /* Smooth scrolling for PDF container */
 .pdf-container {
@@ -61,34 +56,34 @@
   scroll-margin-top: 80px;
 }
 
-/* custom-scrollbar */
+/* custom-scrollbar chat box*/
 .custom-scrollbar::-webkit-scrollbar {
-  width: 10px;
+  width: 8px;
 }
 .custom-scrollbar::-webkit-scrollbar-track {
   background: #151415;
-  border-radius: 9999px;
+  border-radius: 30px;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #555;
-  border-radius: 9999px;
-  border: 3px solid #151415;
+  background: #1c1b1d;
+  border-radius: 30px;
+  border: 2px solid #151415;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #333243;
+  background: #555;
 }
 
 /* custom-scrollbar pdf*/
 .custom-scrollbar-pdf::-webkit-scrollbar {
-  width: 10px;
+  width: 8px;
 }
 .custom-scrollbar-pdf::-webkit-scrollbar-track {
   background: #151415;
-  border-radius: 9999px;
+  border-radius: 30px;
 }
 .custom-scrollbar-pdf::-webkit-scrollbar-thumb {
   background: #555;
-  border-radius: 9999px;
+  border-radius: 30px;
   border: 1px solid #151415;
 }
 .custom-scrollbar-pdf::-webkit-scrollbar-thumb:hover {

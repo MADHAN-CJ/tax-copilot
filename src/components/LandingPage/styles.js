@@ -405,16 +405,20 @@ export const StylesHistoryWrapper = styled.div`
     overflow-y: auto;
     padding-right: 10px;
 
+    //scroll bar styles
     &::-webkit-scrollbar {
-      width: 6px;
-      background: black;
+      width: 8px;
+      background: #151415;
+      border-radius: 30px;
     }
     &::-webkit-scrollbar-thumb {
-      background: #333234;
+      background: #1c1b1d;
       border-radius: 30px;
+      border: 1px solid #151415;
     }
     &::-webkit-scrollbar-track {
       background: transparent;
+      border-radius: 30px;
     }
 
     & > * {

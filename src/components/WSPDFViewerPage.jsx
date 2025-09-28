@@ -1,35 +1,23 @@
 import { ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
 import { Button } from "./ui/button";
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import { useWebSocket } from "../hooks/useWebSocket";
-import { useLocation, useNavigate } from "react-router";
+import { useNavigate } from "react-router";
 import { motion } from "framer-motion";
-import { onClickBounceEffect } from "../utils/utils";
+//context
 import { useSocketContext } from "../context/WebSocketContext";
-
 //styles
-import {
-  StylesHistoryWrapper,
-  StylesLandingPageHeader,
-  StylesNewChatButton,
-  StylesSearchContainerWrapper,
-  StylesSearchInput,
-  StylesTokenUsage,
-} from "./LandingPage/styles";
-
+import { StylesSearchContainerWrapper } from "./LandingPage/styles";
 //images
-import Logo from "../assets/images/logo.png";
 import UpArrow from "../assets/images/up-arrow.svg";
-import SearchIcon from "../assets/images/search-icon.svg";
-import SidebarIcon from "../assets/images/sidebar-icon.svg";
-import NewChatButton from "../assets/images/new-chat-button.svg";
+import Navbar from "./Navbar/Navbar";
+import SidebarComponent from "./Sidebar/Sidebar";
 
 // Configure PDF.js worker - simple local approach
 pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.js";
 
-const totalTokenCount = "100000";
-
+//PDFViewerPage component
 export default function PDFViewerPage() {
   const navigate = useNavigate();
 
@@ -38,10 +26,8 @@ export default function PDFViewerPage() {
   const [isResizing, setIsResizing] = useState(false);
   const [activeTabIndex, setActiveTabIndex] = useState(0);
   const [pdfWidth, setPdfWidth] = useState(800);
-  const [documentStates, setDocumentStates] = useState({}); // Store state for each document
+  const [documentStates, setDocumentStates] = useState({});
   const [pendingScrollActions, setPendingScrollActions] = useState({});
-  const [searchValue, setSearchValue] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
 
   //highlight state
   const [charBoxes, setCharBoxes] = useState({
@@ -57,8 +43,6 @@ export default function PDFViewerPage() {
   //refs
   const messagesEndRef = useRef(null);
 
-  const location = useLocation();
-
   //context
   const {
     messages,
@@ -69,12 +53,7 @@ export default function PDFViewerPage() {
     activeDocuments,
     setActiveDocuments,
     handleInputKeyDown,
-    tokenUsage,
     isSidebarOpen,
-    setIsSidebarOpen,
-    getUserTokenUsage,
-    isConnected,
-    setMessages,
   } = useSocketContext();
 
   // WebSocket connection
@@ -323,37 +302,6 @@ export default function PDFViewerPage() {
     }
   }, [messages]);
 
-  // debounce effect for thread search
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedSearch(searchValue?.toLowerCase());
-    }, 300); // 300ms delay
-
-    return () => clearTimeout(handler);
-  }, [searchValue]);
-
-  //filter threads
-  const filteredThreads = useMemo(
-    () =>
-      tokenUsage?.data?.userThreadData
-        ?.filter((query) =>
-          query?.initialMessage?.toLowerCase().includes(debouncedSearch)
-        )
-        ?.sort(
-          (a, b) => new Date(b.messageCreatedAt) - new Date(a.messageCreatedAt)
-        ),
-    [tokenUsage, debouncedSearch]
-  );
-
-  //progress bar data
-  const usedTokens = tokenUsage?.data?.userData?.tokensUsed || 0;
-  const progress = Math.min((usedTokens / totalTokenCount) * 100, 100);
-
-  //token usage
-  useEffect(() => {
-    if (isConnected) getUserTokenUsage();
-  }, [isConnected, getUserTokenUsage]);
-
   // mark app as "justMounted" on first entry
   useEffect(() => {
     if (!sessionStorage.getItem("appMounted")) {
@@ -361,22 +309,11 @@ export default function PDFViewerPage() {
     }
   }, []);
 
-  //reset messages on reload or navigation
-  // useEffect(() => {
-  //   const isPageReload = performance
-  //     .getEntriesByType("navigation")
-  //     .some((nav) => nav.type === "reload");
-
-  //   if (!isPageReload) {
-  //     setMessages([]);
-  //   }
-  // }, [location.pathname, setMessages]);
-
   //highlight function
   // Detect PDF coordinate system direction (flip or not)
   const detectYDirection = (docId, pageNum) => {
     const pageData = charBoxes[docId]?.[pageNum];
-    console.log(pageData, "pagedata");
+
     if (!pageData?.boxes || pageData.boxes.length < 2) return;
 
     const firstY = pageData.boxes[0].y; // raw PDF y
@@ -633,31 +570,13 @@ export default function PDFViewerPage() {
 
   return (
     <div className="h-screen bg-[#151415]  flex flex-col overflow-hidden">
-      <StylesLandingPageHeader>
-        <div className="flex items-center">
-          <img src={Logo} alt="logo" />
-          <div className="w-[2px] bg-[#333234] h-[60px] ml-[20px]"></div>
-          <button
-            className="h-[60px] bg-[#151415] hover:bg-[#2a292b] transition p-[20px]"
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-          >
-            <img src={SidebarIcon} alt="sidebar" />
-          </button>
-          <div className="w-[2px] bg-[#333234] h-[60px] mr-[20px]"></div>
-
-          <span className="logo-text">
-            Your AI-powered research partner for every regulation.
-          </span>
-        </div>
-        <span className="header-right">support@revise.network</span>
-      </StylesLandingPageHeader>
+      <Navbar />
       <div className="overflow-hidden bg-[#151415]">
         {/* Show full-width chat when no documents, split view when documents available */}
         <motion.div
           initial={false}
           transition={{ type: "tween", duration: 0.3 }}
         >
-          {/* {(activeDocuments.length > 0 || messages.length > 0) && ( */}
           <div className="flex flex-1 h-[calc(100vh-60px)] bg-[#151415]">
             <motion.aside
               initial={false}
@@ -665,83 +584,7 @@ export default function PDFViewerPage() {
               transition={{ type: "tween", duration: 0.3 }}
               className=" bg-[#1c1b1d]  overflow-hidden flex-shrink-0"
             >
-              {isSidebarOpen && (
-                <div className="h-full flex flex-col">
-                  <StylesSearchInput>
-                    <img src={SearchIcon} alt="" />
-                    <input
-                      type="text"
-                      placeholder="Search Chats"
-                      value={searchValue}
-                      onChange={(e) => setSearchValue(e.target.value)}
-                    />
-                  </StylesSearchInput>
-                  <StylesTokenUsage>
-                    <p className="token-header">Tokens</p>
-                    <div className="progress-bar">
-                      <div
-                        className="progress-fill"
-                        style={{ width: `${progress}%` }}
-                      ></div>
-                    </div>
-                    <div className="token-numbers">
-                      <p>
-                        {tokenUsage?.data?.userData?.tokensUsed
-                          ? tokenUsage?.data?.userData?.tokensUsed
-                          : "0"}
-                      </p>
-                      <p>{totalTokenCount}</p>
-                    </div>
-                    <div className="token-text">
-                      <p>Used</p>
-                      <p>Total</p>
-                    </div>
-                  </StylesTokenUsage>
-
-                  <StylesNewChatButton
-                    onClick={(event) =>
-                      onClickBounceEffect(event, 150, () => {
-                        setMessages([]);
-                        setActiveDocuments([]);
-                        navigate("/");
-                      })
-                    }
-                  >
-                    <img src={NewChatButton} alt="chat" /> New Chat
-                  </StylesNewChatButton>
-
-                  <StylesHistoryWrapper>
-                    <h1 className="history-header">HISTORY</h1>
-                    <ul className="history-list">
-                      {filteredThreads?.length > 0 ? (
-                        filteredThreads?.map((query, uniqueQuery) => {
-                          const isActive =
-                            location.pathname === `/c/${query?.id}`;
-                          return (
-                            <li
-                              className={`hover:text-gray-300 cursor-pointer query-name ${
-                                isActive
-                                  ? "bg-[#2a292b] text-white rounded-md"
-                                  : ""
-                              }`}
-                              key={uniqueQuery}
-                              onClick={() => {
-                                setMessages([]);
-                                setActiveDocuments([]);
-                                navigate(`/c/${query?.id}`);
-                              }}
-                            >
-                              {query?.initialMessage}
-                            </li>
-                          );
-                        })
-                      ) : (
-                        <p className="text-center">No history found</p>
-                      )}
-                    </ul>
-                  </StylesHistoryWrapper>
-                </div>
-              )}
+              <SidebarComponent />
             </motion.aside>
             <div className="flex-1 flex overflow-hidden ">
               {activeDocuments.length > 0 && (

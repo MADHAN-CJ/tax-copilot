@@ -315,20 +315,8 @@ export const WebSocketProvider = ({ children }) => {
   ]);
 
   useEffect(() => {
-    const appMounted = sessionStorage.getItem("appMounted");
-
-    if (
-      threadId &&
-      isConnected &&
-      appMounted === "true" &&
-      location.pathname.startsWith("/c/")
-    ) {
+    if (threadId && isConnected && location.pathname.startsWith("/c/")) {
       getMessage(threadId);
-    }
-
-    // If "justMounted", upgrade it to "true" for next refresh
-    if (appMounted === "justMounted") {
-      sessionStorage.setItem("appMounted", "true");
     }
   }, [isConnected, threadId, location.pathname, getMessage]);
 
