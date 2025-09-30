@@ -28,12 +28,10 @@ export const ChatProvider = ({ children }) => {
     extractUniqueSourcesFromResponse,
     setActiveTabIndex,
   } = useDocsContext();
-
   //states
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-
   //refs
   const lastAckId = useRef(null);
 
@@ -49,30 +47,6 @@ export const ChatProvider = ({ children }) => {
       prev.map((m) => (m.id === id && m.isLoader ? { ...newMessage, id } : m))
     );
   }, []);
-
-  const handleSendMessage = useCallback(
-    async (event) => {
-      if (event) event.preventDefault();
-      if (!inputMessage.trim() || isLoading) return;
-
-      const userMessage = { type: "user", content: inputMessage };
-      setMessages((prev) => [...prev, userMessage]);
-      setInputMessage("");
-      setIsLoading(true);
-      sendMessage(inputMessage);
-    },
-    [inputMessage, isLoading, sendMessage]
-  );
-
-  const handleInputKeyDown = useCallback(
-    (e) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        handleSendMessage();
-      }
-    },
-    [handleSendMessage]
-  );
 
   // Extract threadId manually from the path `/c/:threadId`
   const threadId = location.pathname.startsWith("/c/")
@@ -95,16 +69,47 @@ export const ChatProvider = ({ children }) => {
     [inputMessage, isLoading, sendMessage, threadId, setActiveDocuments]
   );
 
+  //handle key enter on landing page
+  const handleInputKeyDownOnLandingPage = useCallback(
+    (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        handleLandingPageSendMessage();
+      }
+    },
+    [handleLandingPageSendMessage]
+  );
+
+  //handle send message using threadId
+  const handleSendMessage = useCallback(
+    async (event) => {
+      if (event) event.preventDefault();
+      if (!inputMessage.trim() || isLoading) return;
+
+      const userMessage = { type: "user", content: inputMessage };
+      setMessages((prev) => [...prev, userMessage]);
+      setInputMessage("");
+      setIsLoading(true);
+      sendMessage(inputMessage, threadId);
+    },
+    [inputMessage, isLoading, sendMessage, threadId]
+  );
+
+  //handle key enter on chat page
+  const handleInputKeyDown = useCallback(
+    (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        handleSendMessage();
+      }
+    },
+    [handleSendMessage]
+  );
+
   // Handle WS messages
   useEffect(() => {
     if (wsMessages?.length === 0) return;
     const msg = wsMessages[wsMessages.length - 1];
-
-    // Ignore error messages on first mount
-    // if (msg?.type === "error" && messages.length === 0) {
-    //   // console.log("Ignoring initial error on first mount:", msg);
-    //   return;
-    // }
 
     // Only process allowed live message types
     if (
@@ -202,6 +207,9 @@ export const ChatProvider = ({ children }) => {
       if (location.pathname === "/") {
         navigate(`/c/${msg.threadId}`);
       }
+      if (threadId !== msg?.threadId) {
+        getUserTokenUsage();
+      }
       const loaderId = `${msg.threadId}-ack`;
       addLoader(loaderId, "⌛ Starting analysis...");
       replaceLoader(loaderId, {
@@ -297,6 +305,8 @@ export const ChatProvider = ({ children }) => {
     replaceLoader,
     setActiveDocuments,
     setActiveTabIndex,
+    getUserTokenUsage,
+    threadId,
   ]);
 
   useEffect(() => {
@@ -322,6 +332,7 @@ export const ChatProvider = ({ children }) => {
         addLoader,
         replaceLoader,
         handleLandingPageSendMessage,
+        handleInputKeyDownOnLandingPage,
       }}
     >
       {children}

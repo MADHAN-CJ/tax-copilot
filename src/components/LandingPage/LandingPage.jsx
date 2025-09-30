@@ -33,6 +33,7 @@ export default function LandingPage() {
     setInputMessage,
     isLoading,
     handleLandingPageSendMessage,
+    handleInputKeyDownOnLandingPage,
     setMessages,
   } = useChatContext();
   const { isSidebarOpen } = useUIContext();
@@ -122,6 +123,7 @@ export default function LandingPage() {
                           value={inputMessage}
                           onChange={(e) => setInputMessage(e.target.value)}
                           disabled={isLoading}
+                          onKeyDown={handleInputKeyDownOnLandingPage}
                         ></textarea>
                         <div className="button-text">
                           <span className="gpt-name">Using GPT-5 </span>

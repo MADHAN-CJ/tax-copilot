@@ -4,9 +4,10 @@ import { Document, Page } from "react-pdf";
 const DocumentViewer = memo(
   ({
     doc,
+    pageRefs,
     isVisible,
     isResizing,
-    pdfWidth,
+    // pdfWidth,
     docState,
     // charBoxes,
     pendingAction,
@@ -25,6 +26,9 @@ const DocumentViewer = memo(
           <div
             key={pageNumber}
             id={`${doc.id}-page-${pageNumber}`}
+            ref={(el) => {
+              pageRefs.current[`${doc.id}-page-${pageNumber}`] = el;
+            }}
             className="relative bg-white shadow-lg rounded-lg overflow-hidden mb-4"
           >
             <div className="bg-gray-50 px-4 py-2 text-sm text-black font-medium">
@@ -33,7 +37,7 @@ const DocumentViewer = memo(
             <div style={{ position: "relative" }}>
               <Page
                 pageNumber={pageNumber}
-                width={pdfWidth}
+                // width={pdfWidth}
                 loading={
                   <div className="flex items-center justify-center h-96">
                     <div className="text-gray-500">
@@ -69,7 +73,7 @@ const DocumentViewer = memo(
           </div>
         );
       });
-    }, [doc.id, docState.numPages, pdfWidth]);
+    }, [doc.id, docState.numPages, pageRefs]);
 
     return (
       <div

@@ -30,7 +30,7 @@ const PDFViewerPage = memo(() => {
   // PDF state
   const [sidebarWidth, setSidebarWidth] = useState("350");
   const [isResizing, setIsResizing] = useState(false);
-  const [pdfWidth, setPdfWidth] = useState(800);
+  // const [pdfWidth, setPdfWidth] = useState(800);
   const [documentStates, setDocumentStates] = useState({});
   const [pendingScrollActions, setPendingScrollActions] = useState({});
 
@@ -50,6 +50,7 @@ const PDFViewerPage = memo(() => {
   const sidebarWidthRef = useRef(sidebarWidth);
   const resizeRafId = useRef();
   const messagesEndRef = useRef(null);
+  const pageRefs = useRef({});
 
   //contexts
   const {
@@ -58,8 +59,9 @@ const PDFViewerPage = memo(() => {
     setInputMessage,
     isLoading,
     messages,
+    handleSendMessage,
   } = useChatContext();
-  const { isSidebarOpen, handleSendMessage } = useUIContext();
+  const { isSidebarOpen } = useUIContext();
   const {
     activeDocuments,
     setActiveDocuments,
@@ -219,9 +221,13 @@ const PDFViewerPage = memo(() => {
     );
   }, [documentStates, getCurrentDocument]);
 
-  //handle mouse down
+  // handle mouse down
   const handleMouseDown = () => {
     setIsResizing(true);
+  };
+
+  const handleMouseUp = () => {
+    setIsResizing(false);
   };
 
   const handleMouseMove = useCallback(
@@ -251,11 +257,7 @@ const PDFViewerPage = memo(() => {
     [isResizing]
   );
 
-  const handleMouseUp = () => {
-    setIsResizing(false);
-  };
-
-  //sidebar resize
+  // sidebar resize
   useEffect(() => {
     if (isResizing) {
       document.addEventListener("mousemove", handleMouseMove, {
@@ -274,23 +276,23 @@ const PDFViewerPage = memo(() => {
   }, [isResizing, handleMouseMove]);
 
   // Debounce PDF width on resize
-  useEffect(() => {
-    const updatePdfWidth = () => {
-      const availableWidth = window.innerWidth - sidebarWidth - 100;
-      const newWidth = Math.min(availableWidth * 0.9, 900);
-      if (Math.abs(newWidth - pdfWidth) > 10) {
-        setPdfWidth(newWidth);
-      }
-    };
+  // useEffect(() => {
+  //   const updatePdfWidth = () => {
+  //     const availableWidth = window.innerWidth - sidebarWidth - 100;
+  //     const newWidth = Math.min(availableWidth * 0.9, 900);
+  //     if (Math.abs(newWidth - pdfWidth) > 10) {
+  //       setPdfWidth(newWidth);
+  //     }
+  //   };
 
-    updatePdfWidth();
+  //   updatePdfWidth();
 
-    window.addEventListener("resize", updatePdfWidth);
+  //   window.addEventListener("resize", updatePdfWidth);
 
-    return () => {
-      window.removeEventListener("resize", updatePdfWidth);
-    };
-  }, [sidebarWidth, pdfWidth]);
+  //   return () => {
+  //     window.removeEventListener("resize", updatePdfWidth);
+  //   };
+  // }, [sidebarWidth, pdfWidth]);
 
   //document scroll
   useEffect(() => {
@@ -338,10 +340,15 @@ const PDFViewerPage = memo(() => {
       { threshold: 0.5 }
     );
 
-    // Observe all page elements for the current document
+    // Observe all pages using refs
     for (let i = 1; i <= docState.numPages; i++) {
-      const pageElement = document.getElementById(`${currentDoc.id}-page-${i}`);
-      if (pageElement) observer.observe(pageElement);
+      const key = `${currentDoc.id}-page-${i}`;
+      const pageEl = pageRefs.current[key];
+      if (pageEl) {
+        // add a data attribute so we can recover docId + pageNum in callback
+        pageEl.dataset.key = key;
+        observer.observe(pageEl);
+      }
     }
 
     return () => observer.disconnect();
@@ -730,10 +737,10 @@ const PDFViewerPage = memo(() => {
                   {activeDocuments.length > 0 && (
                     <div
                       className="flex-1 bg-[#1C1B1D] overflow-auto p-4 pdf-container mx-[20px]  custom-scrollbar-pdf"
-                      // style={{
-                      //   opacity: isResizing ? 0.7 : 1,
-                      //   transition: "opacity 0.1s ease",
-                      // }}
+                      style={{
+                        opacity: isResizing ? 0.7 : 1,
+                        transition: "opacity 0.1s ease",
+                      }}
                     >
                       {activeDocuments?.length > 0 ? (
                         <div className="flex justify-center">
@@ -742,9 +749,10 @@ const PDFViewerPage = memo(() => {
                               <DocumentViewer
                                 key={doc.id}
                                 doc={doc}
+                                pageRefs={pageRefs}
                                 isVisible={index === activeTabIndex}
-                                // isResizing={isResizing}
-                                pdfWidth={800}
+                                isResizing={isResizing}
+                                // pdfWidth={pdfWidth}
                                 docState={documentStates[doc.id] || {}}
                                 // charBoxes={charBoxes}
                                 pendingAction={pendingScrollActions[doc.id]}

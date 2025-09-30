@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 //styles
 import {
@@ -31,10 +31,11 @@ const SidebarComponent = () => {
   const { setMessages } = useChatContext();
   const { isSidebarOpen } = useUIContext();
   const { setActiveDocuments } = useDocsContext();
-
   //states
   const [searchValue, setSearchValue] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  //refs
+  const activeThreadRef = useRef();
 
   //get the searched thread
   const filteredThreads = useMemo(
@@ -68,6 +69,16 @@ const SidebarComponent = () => {
   useEffect(() => {
     setProgress(calculatedProgress);
   }, [calculatedProgress]);
+
+  //keep the active thread in the view
+  useEffect(() => {
+    if (activeThreadRef?.current) {
+      activeThreadRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+      });
+    }
+  }, [location.pathname, filteredThreads]);
   return (
     <>
       {isSidebarOpen && (
@@ -123,6 +134,7 @@ const SidebarComponent = () => {
                   const isActive = location.pathname === `/c/${query?.id}`;
                   return (
                     <li
+                      ref={isActive ? activeThreadRef : null}
                       className={`hover:text-gray-300 cursor-pointer query-name ${
                         isActive ? "bg-[#2a292b] text-white rounded-md" : ""
                       }`}
