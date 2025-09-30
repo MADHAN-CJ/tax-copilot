@@ -1,14 +1,15 @@
 //styles
 import { StylesLandingPageHeader } from "../LandingPage/styles";
-
 //images
 import Logo from "../../assets/images/logo.png";
-import { useSocketContext } from "../../context/WebSocketContext";
+//utils
 import { onClickBounceEffect } from "../../utils/utils";
+//contexts
+import { useUIContext } from "../../context/UIContext";
 
 const Navbar = () => {
   //context
-  const { setIsSidebarOpen, isSidebarOpen } = useSocketContext();
+  const { isSidebarOpen, setIsSidebarOpen } = useUIContext();
 
   return (
     <StylesLandingPageHeader>

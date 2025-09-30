@@ -2,72 +2,54 @@ import {
   createContext,
   useContext,
   useState,
-  useEffect,
-  useRef,
   useCallback,
-  useMemo,
+  useRef,
+  useEffect,
 } from "react";
-import { useNavigate, useLocation } from "react-router";
-import { useWebSocket } from "../hooks/useWebSocket";
+import { useWSSocketContext } from "./SocketContext";
+import { useDocsContext } from "./DocumentsContext";
+import { useLocation, useNavigate } from "react-router";
 
-const WebSocketContext = createContext();
+const ChatContext = createContext();
 
-export const WebSocketProvider = ({ children }) => {
-  const navigate = useNavigate();
+export const ChatProvider = ({ children }) => {
   const location = useLocation();
+  const navigate = useNavigate();
+  //context
+  const {
+    sendMessage,
+    wsMessages,
+    isConnected,
+    getUserTokenUsage,
+    getMessage,
+  } = useWSSocketContext();
+  const {
+    setActiveDocuments,
+    extractUniqueSourcesFromResponse,
+    setActiveTabIndex,
+  } = useDocsContext();
 
-  // Extract threadId manually from the path `/c/:threadId`
-  const threadId = location.pathname.startsWith("/c/")
-    ? location.pathname.split("/c/")[1]?.split("/")[0] || null
-    : null;
-
-  //document states
-  const [activeDocuments, setActiveDocuments] = useState([]);
-  const [activeTabIndex, setActiveTabIndex] = useState(0);
-
-  //chat message states
+  //states
   const [messages, setMessages] = useState([]);
-  const [systemMessages, setSystemMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  //sidebar state
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-
-  //get data from the useWebSocket hook
-  const {
-    sendMessage,
-    getMessage,
-    messages: wsMessages,
-    reconnect,
-    isConnected,
-    getUserTokenUsage,
-    tokenUsage,
-  } = useWebSocket("wss://api.bookshelf.diy/legal/retrieve/ws");
-
-  // refs
+  //refs
   const lastAckId = useRef(null);
 
-  // Push system message to toasts
-  const pushSystemMessage = useCallback((msg) => {
-    setSystemMessages((prev) => [...prev, { id: Date.now(), ...msg }]);
+  const addLoader = useCallback((id, content = "⏳ Processing...") => {
+    setMessages((prev) => [
+      ...prev,
+      { id, type: "ai", content, isLoader: true, font: "italic" },
+    ]);
   }, []);
 
-  // get documents from the thread response
-  const extractUniqueSourcesFromResponse = useCallback((apiResponse) => {
-    if (!apiResponse?.chunks || !Array.isArray(apiResponse.chunks)) return [];
-    const uniqueSources = new Set();
-    apiResponse.chunks.forEach((chunk) => {
-      if (chunk.source) uniqueSources.add(chunk.source);
-    });
-    return Array.from(uniqueSources).map((source) => ({
-      name: source,
-      url: `https://api.bookshelf.diy/finance/gpt/api/v1/static/docs/${source}`,
-      id: source.replace(/[^a-zA-Z0-9]/g, "_"),
-    }));
+  const replaceLoader = useCallback((id, newMessage) => {
+    setMessages((prev) =>
+      prev.map((m) => (m.id === id && m.isLoader ? { ...newMessage, id } : m))
+    );
   }, []);
 
-  //ask prompt functionality in Pdf viewer page
   const handleSendMessage = useCallback(
     async (event) => {
       if (event) event.preventDefault();
@@ -77,10 +59,25 @@ export const WebSocketProvider = ({ children }) => {
       setMessages((prev) => [...prev, userMessage]);
       setInputMessage("");
       setIsLoading(true);
-      sendMessage(inputMessage, threadId);
+      sendMessage(inputMessage);
     },
-    [inputMessage, isLoading, threadId, sendMessage]
+    [inputMessage, isLoading, sendMessage]
   );
+
+  const handleInputKeyDown = useCallback(
+    (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        handleSendMessage();
+      }
+    },
+    [handleSendMessage]
+  );
+
+  // Extract threadId manually from the path `/c/:threadId`
+  const threadId = location.pathname.startsWith("/c/")
+    ? location.pathname.split("/c/")[1]?.split("/")[0] || null
+    : null;
 
   //ask prompt functionality in landing page
   const handleLandingPageSendMessage = useCallback(
@@ -95,36 +92,10 @@ export const WebSocketProvider = ({ children }) => {
       setIsLoading(true);
       sendMessage(inputMessage, threadId);
     },
-    [inputMessage, isLoading, sendMessage, threadId]
+    [inputMessage, isLoading, sendMessage, threadId, setActiveDocuments]
   );
 
-  //allow user to submit on clicking on enter and go to next line when pressed the shift enter
-  const handleInputKeyDown = useCallback(
-    (e) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-
-        handleSendMessage();
-      }
-    },
-    [handleSendMessage]
-  );
-
-  //add a placeholder text while loading the response
-  const addLoader = useCallback((id, content = "⏳ Processing...") => {
-    setMessages((prev) => [
-      ...prev,
-      { id, type: "ai", content, isLoader: true, font: "italic" },
-    ]);
-  }, []);
-
-  //replace loader with the original content
-  const replaceLoader = useCallback((id, newMessage) => {
-    setMessages((prev) =>
-      prev.map((m) => (m.id === id && m.isLoader ? { ...newMessage, id } : m))
-    );
-  }, []);
-
+  // Handle WS messages
   useEffect(() => {
     if (wsMessages?.length === 0) return;
     const msg = wsMessages[wsMessages.length - 1];
@@ -324,6 +295,8 @@ export const WebSocketProvider = ({ children }) => {
     location.pathname,
     addLoader,
     replaceLoader,
+    setActiveDocuments,
+    setActiveTabIndex,
   ]);
 
   useEffect(() => {
@@ -335,61 +308,25 @@ export const WebSocketProvider = ({ children }) => {
   useEffect(() => {
     if (isConnected) getUserTokenUsage();
   }, [isConnected, getUserTokenUsage]);
-
-  const contextValue = useMemo(
-    () => ({
-      messages,
-      setMessages,
-      systemMessages,
-      pushSystemMessage,
-      inputMessage,
-      setInputMessage,
-      isLoading,
-      setIsLoading,
-      activeDocuments,
-      setActiveDocuments,
-      activeTabIndex,
-      setActiveTabIndex,
-      handleSendMessage,
-      reconnect,
-      handleInputKeyDown,
-      tokenUsage,
-      isSidebarOpen,
-      setIsSidebarOpen,
-      isConnected,
-      getUserTokenUsage,
-      handleLandingPageSendMessage,
-    }),
-    [
-      messages,
-      setMessages,
-      systemMessages,
-      pushSystemMessage,
-      inputMessage,
-      setInputMessage,
-      isLoading,
-      setIsLoading,
-      activeDocuments,
-      setActiveDocuments,
-      activeTabIndex,
-      setActiveTabIndex,
-      handleSendMessage,
-      reconnect,
-      handleInputKeyDown,
-      tokenUsage,
-      isSidebarOpen,
-      setIsSidebarOpen,
-      isConnected,
-      getUserTokenUsage,
-      handleLandingPageSendMessage,
-    ]
-  );
-
   return (
-    <WebSocketContext.Provider value={contextValue}>
+    <ChatContext.Provider
+      value={{
+        messages,
+        setMessages,
+        inputMessage,
+        setInputMessage,
+        isLoading,
+        setIsLoading,
+        handleSendMessage,
+        handleInputKeyDown,
+        addLoader,
+        replaceLoader,
+        handleLandingPageSendMessage,
+      }}
+    >
       {children}
-    </WebSocketContext.Provider>
+    </ChatContext.Provider>
   );
 };
 
-export const useSocketContext = () => useContext(WebSocketContext);
+export const useChatContext = () => useContext(ChatContext);

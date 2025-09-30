@@ -208,12 +208,14 @@ export function useWebSocket(url) {
     }
   }, [pushError]);
 
+  const reconnect = useCallback(() => connect(true), [connect]);
+
   return {
     messages,
     setMessages,
     sendMessage,
     getMessage,
-    reconnect: () => connect(true),
+    reconnect,
     threadId: threadIdRef.current,
     isConnected,
     getUserTokenUsage,

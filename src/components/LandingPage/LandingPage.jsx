@@ -1,19 +1,22 @@
+import { useEffect } from "react";
+import { useLocation } from "react-router";
+//third party libraries
+import { motion } from "framer-motion";
 //styles
 import {
   StylesLandingPageBodyWrapper,
   StylesLandingPageWrapper,
 } from "./styles";
-
 //images
 import UpArrow from "../../assets/images/up-arrow.svg";
 import Banner from "../../assets/images/landing-page-banner.png";
-
-import { useSocketContext } from "../../context/WebSocketContext";
-import { useEffect } from "react";
-import { motion } from "framer-motion";
-import { useLocation } from "react-router";
+//components
 import Navbar from "../Navbar/Navbar";
 import SidebarComponent from "../Sidebar/Sidebar";
+//context
+import { useChatContext } from "../../context/ChatContext";
+import { useUIContext } from "../../context/UIContext";
+import { useDocsContext } from "../../context/DocumentsContext";
 
 //static prompts
 const searchPrompts = [
@@ -23,19 +26,17 @@ const searchPrompts = [
 ];
 
 export default function LandingPage() {
-  //context
+  const location = useLocation();
+  //contexts
   const {
     inputMessage,
     setInputMessage,
     isLoading,
     handleLandingPageSendMessage,
-    handleInputKeyDown,
-    isSidebarOpen,
     setMessages,
-    setActiveDocuments,
-    setActiveTabIndex,
-  } = useSocketContext();
-  const location = useLocation();
+  } = useChatContext();
+  const { isSidebarOpen } = useUIContext();
+  const { setActiveDocuments, setActiveTabIndex } = useDocsContext();
 
   //start as a fresh attempt
   useEffect(() => {
@@ -120,7 +121,6 @@ export default function LandingPage() {
                           placeholder="Start typing..."
                           value={inputMessage}
                           onChange={(e) => setInputMessage(e.target.value)}
-                          onKeyDown={handleInputKeyDown}
                           disabled={isLoading}
                         ></textarea>
                         <div className="button-text">

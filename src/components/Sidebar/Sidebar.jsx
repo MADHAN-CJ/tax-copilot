@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useLocation, useNavigate } from "react-router";
 //styles
 import {
   StylesHistoryWrapper,
@@ -9,21 +10,28 @@ import {
 //utils
 import { onClickBounceEffect } from "../../utils/utils";
 //context
-import { useSocketContext } from "../../context/WebSocketContext";
+import { useChatContext } from "../../context/ChatContext";
+import { useUIContext } from "../../context/UIContext";
+import { useWSSocketContext } from "../../context/SocketContext";
+import { useDocsContext } from "../../context/DocumentsContext";
 //images
 import SearchIcon from "../../assets/images/search-icon.svg";
 import NewChatButton from "../../assets/images/new-chat-button.svg";
-import { useLocation, useNavigate } from "react-router";
 
 //total token count
 const totalTokenCount = "100000";
 
 const SidebarComponent = () => {
-  //context
-  const { setActiveDocuments, tokenUsage, isSidebarOpen, setMessages } =
-    useSocketContext();
   const navigate = useNavigate();
   const location = useLocation();
+  // states
+  const [progress, setProgress] = useState(0);
+  //contexts
+  const { tokenUsage } = useWSSocketContext();
+  const { setMessages } = useChatContext();
+  const { isSidebarOpen } = useUIContext();
+  const { setActiveDocuments } = useDocsContext();
+
   //states
   const [searchValue, setSearchValue] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -51,7 +59,15 @@ const SidebarComponent = () => {
   }, [searchValue]);
 
   const usedTokens = tokenUsage?.data?.userData?.tokensUsed || 0;
-  const progress = Math.min((usedTokens / totalTokenCount) * 100, 100);
+  const calculatedProgress = Math.min(
+    (usedTokens / totalTokenCount) * 100,
+    100
+  );
+
+  //update progress once data is available
+  useEffect(() => {
+    setProgress(calculatedProgress);
+  }, [calculatedProgress]);
   return (
     <>
       {isSidebarOpen && (

@@ -328,7 +328,6 @@ export const StylesTokenUsage = styled.div`
     color: #fff;
     font-family: "DM Sans";
     font-size: 12px;
-
     font-weight: 500;
     line-height: normal;
     letter-spacing: 0.72px;
@@ -349,6 +348,7 @@ export const StylesTokenUsage = styled.div`
     height: 100%;
     transition: width 0.4s ease;
   }
+
   .token-numbers {
     display: flex;
     justify-content: space-between;
