@@ -18,7 +18,7 @@ const DocumentViewer = memo((props) => {
     onDocumentLoadSuccess,
     setPendingScrollActions,
     onRegisterScrollTo,
-    pdfWidth,
+    // pdfWidth,
     // charBoxes,
     // handleGetCharBoxes,
     // renderBoundingHighlights,

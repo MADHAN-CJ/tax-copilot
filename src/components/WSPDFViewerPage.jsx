@@ -697,7 +697,7 @@ const PDFViewerPage = memo(() => {
             >
               <SidebarComponent />
             </motion.aside>
-            <div className="flex-1 flex overflow-hidden ">
+            <div className="flex overflow-hidden w-full">
               {/* pdf section */}
               {activeDocuments.length > 0 ? (
                 <div
@@ -706,6 +706,7 @@ const PDFViewerPage = memo(() => {
                     width: `calc(99.8% - ${sidebarWidth}%)`,
                     transition: isResizing ? "none" : "0.3s linear",
                     minWidth: "40%",
+                    maxWidth: "80%",
                   }}
                 >
                   {/* Document Tabs */}
@@ -836,9 +837,10 @@ const PDFViewerPage = memo(() => {
                 <div
                   className=" h-full flex justify-center items-center flex-col text-white text-center"
                   style={{
-                    width: `calc(99.8% - ${sidebarWidth}%)`,
                     transition: isResizing ? "none" : "0.3s linear",
+                    width: `calc(100% - ${sidebarWidth}%)`,
                     minWidth: "40%",
+                    maxWidth: "80%",
                   }}
                 >
                   <img
@@ -855,6 +857,19 @@ const PDFViewerPage = memo(() => {
                       Ask in the chat. We’ll fetch the right document, highlight
                       the exact text, and give you accurate answers you can
                       trust, no hallucinations.
+                    </p>
+                  </div>
+                  <div className="">
+                    <p>Currently supporting</p>
+                    <p>
+                      Income-tax Act, 1961 (as amended by the Finance Act, 2025)
+                    </p>
+                    <p>Coming soon</p>
+                    <p>
+                      GST, International Tax, Transfer Pricing, Company & SEBI
+                      Laws, Insolvency & Bankruptcy Code, FEMA, Banking &
+                      Insurance, Competition Law, Accounts & Audit, Other Indian
+                      Acts & Rules
                     </p>
                   </div>
                 </div>

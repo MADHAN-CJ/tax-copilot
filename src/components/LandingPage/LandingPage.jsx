@@ -10,6 +10,8 @@ import {
 //images
 import UpArrow from "../../assets/images/up-arrow.svg";
 import Banner from "../../assets/images/landing-page-banner.png";
+import Bullet from "../../assets/images/bullet.svg";
+import ComingSoon from "../../assets/images/coming-soon.svg";
 //components
 import Navbar from "../Navbar/Navbar";
 import SidebarComponent from "../Sidebar/Sidebar";
@@ -20,9 +22,9 @@ import { useDocsContext } from "../../context/DocumentsContext";
 
 //static prompts
 const searchPrompts = [
-  "What are the deduction limits under Section 80D?",
-  "Transfer Pricing documentation thresholds?",
-  "What is FEMA ODI cap for unlisted entities?",
+  "Are fines or penalties deductible as business expenses?",
+  "What is exempt under Section 10(10AA) for leave encashment?",
+  "Is scholarship income taxable?",
 ];
 
 export default function LandingPage() {
@@ -87,14 +89,35 @@ export default function LandingPage() {
                   <div className="left-part-header-right"></div>
                 </div>
                 <div className="left-part-body">
-                  <img src={Banner} alt="banner" loading="lazy" />
-                  <div className="left-part-body-bottom">
-                    <h1>Start with a question.</h1>
-                    <p>
-                      Ask in the chat. We’ll fetch the right document, highlight
-                      the exact text, and give you accurate answers you can
-                      trust, no hallucinations.
-                    </p>
+                  <div className="max-w-[400px] text-center flex  flex-col gap-[47px]">
+                    <img src={Banner} alt="banner" loading="lazy" />
+                    <div className="left-part-body-bottom">
+                      <h1>Start with a question.</h1>
+                      <p>
+                        Ask in the chat. We’ll fetch the right document,
+                        highlight the exact text, and give you accurate answers
+                        you can trust, no hallucinations.
+                      </p>
+                    </div>
+                    <div className="left-part-bottom">
+                      <div>
+                        <p className="bottom-title ">Currently supporting</p>
+                        <p className="bottom-body ">
+                          <img src={Bullet} alt="bullet" /> Income-tax Act, 1961
+                          (as amended by the Finance Act, 2025)
+                        </p>
+                      </div>
+                      <div>
+                        <p className="bottom-title ">Coming soon</p>
+                        <div className="bottom-body ">
+                          <img src={ComingSoon} alt="bullet" />
+                          GST, International Tax, Transfer Pricing, Company &
+                          SEBI Laws, Insolvency & Bankruptcy Code, FEMA, Banking
+                          & Insurance, Competition Law, Accounts & Audit, Other
+                          Indian Acts & Rules
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>

@@ -3,6 +3,8 @@ import { useNavigate } from "react-router";
 import { StylesLandingPageHeader } from "../LandingPage/styles";
 //images
 import Logo from "../../assets/images/logo.png";
+import CallIcon from "../../assets/images/call-help-icon.svg";
+import NotificationIcon from "../../assets/images/notification.svg";
 //utils
 import { onClickBounceEffect } from "../../utils/utils";
 //contexts
@@ -30,7 +32,7 @@ const Navbar = () => {
         <img
           src={Logo}
           alt="logo"
-          className="cursor-pointer"
+          className="cursor-pointer "
           onClick={(event) =>
             onClickBounceEffect(event, 150, () => {
               handleLogoClick();
@@ -68,10 +70,20 @@ const Navbar = () => {
         <div className="w-[2px] bg-[#333234] h-[60px] mr-[20px]"></div>
 
         <span className="logo-text">
-          Your AI-powered research partner for every regulation.
+          Accurate Answers. Straight from the Law.
         </span>
       </div>
-      <span className="header-right">support@revise.network</span>
+      <div className="header-right">
+        <button className="help-button">
+          <img src={CallIcon} alt="call" />
+          Book a Call to Shape TaxAI
+        </button>
+
+        <button className="help-button">
+          <img src={NotificationIcon} alt="notify" />
+          Notify Me When Coverage Expands
+        </button>
+      </div>
     </StylesLandingPageHeader>
   );
 };

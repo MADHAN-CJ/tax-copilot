@@ -33,14 +33,25 @@ export const StylesLandingPageHeader = styled.div`
   }
 
   .header-right {
-    color: #827f88;
-    text-align: right;
+    color: #a2a2a2;
     font-family: "DM Sans";
-    font-size: 16px;
+    font-size: 14px;
     font-style: normal;
     font-weight: 500;
-    line-height: normal;
-    letter-spacing: -0.32px;
+    line-height: 26px;
+    letter-spacing: -0.28px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+
+    .help-button {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 10px;
+      border-radius: 5px;
+      border: 1px solid #565656;
+    }
   }
 `;
 
@@ -93,15 +104,10 @@ export const StylesLandingPageBodyWrapper = styled.div`
       display: flex;
       align-items: center;
       justify-content: center;
-      flex-direction: column;
-      gap: 47px;
 
       .left-part-body-bottom {
-        max-width: 344px;
-
         h1 {
           color: #fff;
-          text-align: center;
           font-family: "DM Sans";
           font-size: 31px;
           font-style: normal;
@@ -113,14 +119,41 @@ export const StylesLandingPageBodyWrapper = styled.div`
 
         p {
           color: #fff;
-          text-align: center;
           font-family: "DM Sans";
           font-size: 14px;
           font-style: normal;
           font-weight: 400;
-          line-height: 18px; /* 128.571% */
+          line-height: 18px;
           letter-spacing: -0.28px;
         }
+      }
+    }
+
+    .left-part-bottom {
+      .bottom-title {
+        color: #827f88;
+        font-family: "DM Sans";
+        font-size: 14px;
+        font-style: normal;
+        font-weight: 500;
+        line-height: 18px;
+        letter-spacing: -0.28px;
+        text-align: left;
+        margin-bottom: 5px;
+      }
+      .bottom-body {
+        text-align: left;
+        color: #fff;
+        font-family: "DM Sans";
+        font-size: 14px;
+        font-style: normal;
+        font-weight: 400;
+        line-height: 18px;
+        letter-spacing: -0.28px;
+        display: flex;
+        gap: 5px;
+        align-items: start;
+        margin-bottom: 12px;
       }
     }
   }
