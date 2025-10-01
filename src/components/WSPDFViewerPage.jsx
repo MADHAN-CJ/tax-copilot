@@ -844,7 +844,7 @@ const PDFViewerPage = memo(() => {
                   style={{
                     transition: isResizing ? "none" : "0.3s linear",
                     width: `calc(99.8% - ${sidebarWidth}%)`,
-                    minWidth: "40%",
+                    minWidth: "60%",
                     maxWidth: "80%",
                   }}
                 >
@@ -893,7 +893,7 @@ const PDFViewerPage = memo(() => {
 
               {/* chat section */}
               <div
-                className="bg-[#1C1B1D] border-l border-[#333234] flex flex-col flex-shrink-0  "
+                className="bg-[#1C1B1D] border-l border-[#333234] flex flex-col"
                 style={{
                   width:
                     activeDocuments?.length === 0
