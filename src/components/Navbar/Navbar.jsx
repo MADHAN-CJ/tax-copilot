@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router";
 //styles
 import { StylesLandingPageHeader } from "../LandingPage/styles";
 //images
@@ -6,15 +7,36 @@ import Logo from "../../assets/images/logo.png";
 import { onClickBounceEffect } from "../../utils/utils";
 //contexts
 import { useUIContext } from "../../context/UIContext";
+import { useChatContext } from "../../context/ChatContext";
+import { useDocsContext } from "../../context/DocumentsContext";
 
 const Navbar = () => {
+  const navigate = useNavigate();
+
   //context
   const { isSidebarOpen, setIsSidebarOpen } = useUIContext();
+  const { setMessages } = useChatContext();
+  const { setActiveDocuments } = useDocsContext();
 
+  //handle logo click
+  const handleLogoClick = () => {
+    setMessages([]);
+    setActiveDocuments([]);
+    navigate("/");
+  };
   return (
     <StylesLandingPageHeader>
       <div className="flex items-center">
-        <img src={Logo} alt="logo" />
+        <img
+          src={Logo}
+          alt="logo"
+          className="cursor-pointer"
+          onClick={(event) =>
+            onClickBounceEffect(event, 150, () => {
+              handleLogoClick();
+            })
+          }
+        />
         <div className="w-[2px] bg-[#333234] h-[60px] ml-[20px]"></div>
         <button
           className="h-[60px] bg-[#151415] hover:bg-[#2a292b] transition p-[20px]"
