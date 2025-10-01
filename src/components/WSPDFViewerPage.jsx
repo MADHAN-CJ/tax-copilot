@@ -670,7 +670,7 @@ const PDFViewerPage = memo(() => {
       setCurrentText(
         loadingTexts[Math.floor(Math.random() * loadingTexts.length)]
       );
-    }, 2000);
+    }, 4000);
 
     return () => clearInterval(interval);
   }, []);
