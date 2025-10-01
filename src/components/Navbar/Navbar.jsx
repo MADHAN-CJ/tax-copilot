@@ -26,6 +26,11 @@ const Navbar = () => {
     setActiveDocuments([]);
     navigate("/");
   };
+
+  //handle help link
+  const handleBookACall = () => {
+    window.open("https://calendly.com/sahil-revise/30min-meeting", "_blank");
+  };
   return (
     <StylesLandingPageHeader>
       <div className="flex items-center">
@@ -74,7 +79,10 @@ const Navbar = () => {
         </span>
       </div>
       <div className="header-right">
-        <button className="help-button">
+        <button
+          className="help-button"
+          onClick={(event) => onClickBounceEffect(event, 150, handleBookACall)}
+        >
           <img src={CallIcon} alt="call" />
           Book a Call to Shape TaxAI
         </button>

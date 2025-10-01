@@ -149,7 +149,7 @@ export default function LandingPage() {
                           onKeyDown={handleInputKeyDownOnLandingPage}
                         ></textarea>
                         <div className="button-text">
-                          <span className="gpt-name">Using GPT-5 </span>
+                          {/* <span className="gpt-name">Using GPT-5 </span> */}
                           <button
                             className="submit-button"
                             type="submit"

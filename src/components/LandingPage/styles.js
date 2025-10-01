@@ -63,15 +63,17 @@ export const StylesLandingPageBodyWrapper = styled.div`
   background-color: #1c1b1d;
   border-top-left-radius: ${({ $isSidebarOpen }) =>
     $isSidebarOpen ? "0px" : "10px"};
+  width: 100%;
 
   .section {
-    flex: 1;
+    /* flex: 1; */
     display: flex;
     flex-direction: column;
   }
 
   .section.left-part {
     padding: 10px 20px;
+    width: 60%;
 
     .left-part-header {
       height: 30px;
@@ -164,6 +166,7 @@ export const StylesLandingPageBodyWrapper = styled.div`
     padding-top: 200px;
     flex-direction: column;
     position: relative;
+    width: 40%;
 
     p {
       color: #fff;
