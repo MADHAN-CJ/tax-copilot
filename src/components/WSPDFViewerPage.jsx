@@ -35,16 +35,16 @@ const PDFViewerPage = memo(() => {
   const [pendingScrollActions, setPendingScrollActions] = useState({});
 
   //highlight state
-  // const [charBoxes, setCharBoxes] = useState({
-  //   x0: 44.9999885559082,
-  //   y0: 42.527969360351565,
-  //   x1: 567.91436767578122,
-  //   y1: 710.29193115234385,
-  //   page_start: 324,
-  //   page_end: 325,
-  // });
+  const [charBoxes, setCharBoxes] = useState({
+    x0: 44.9999885559082,
+    y0: 42.527969360351565,
+    x1: 567.91436767578122,
+    y1: 710.29193115234385,
+    page_start: 324,
+    page_end: 325,
+  });
 
-  // const [yFlipNeeded, setYFlipNeeded] = useState({});
+  const [yFlipNeeded, setYFlipNeeded] = useState({});
 
   //refs
   const sidebarWidthRef = useRef(sidebarWidth);
@@ -74,19 +74,23 @@ const PDFViewerPage = memo(() => {
     "wss://api.bookshelf.diy/legal/retrieve/ws"
   );
 
+  const scrollFnsRef = useRef({});
+
+  const handleRegisterScrollTo = (docId, fn) => {
+    scrollFnsRef.current[docId] = fn;
+  };
+
   const scrollToPageForDocument = useCallback(
     (docId, page) => {
       const docState = documentStates[docId];
       if (!docState || !docState.numPages) return;
 
       const targetPage = Math.max(1, Math.min(docState.numPages, page));
-      const pageElement = document.getElementById(
-        `${docId}-page-${targetPage}`
-      );
-      if (pageElement) {
-        pageElement.scrollIntoView({ behavior: "smooth", block: "start" });
 
-        // Update document state
+      // ✅ call the registered scroll function
+      const fn = scrollFnsRef.current[docId];
+      if (fn) {
+        fn(targetPage);
         setDocumentStates((prev) => ({
           ...prev,
           [docId]: {
@@ -95,9 +99,15 @@ const PDFViewerPage = memo(() => {
             pageNumber: targetPage,
           },
         }));
+      } else {
+        // Not ready yet → fallback to pending action
+        setPendingScrollActions((prev) => ({
+          ...prev,
+          [docId]: { targetPage },
+        }));
       }
     },
-    [documentStates]
+    [documentStates, setDocumentStates, setPendingScrollActions]
   );
 
   // Get current active document
@@ -363,226 +373,226 @@ const PDFViewerPage = memo(() => {
 
   //highlight function
   // Detect PDF coordinate system direction (flip or not)
-  // const detectYDirection = useCallback(
-  //   (docId, pageNum) => {
-  //     const pageData = charBoxes[docId]?.[pageNum];
+  const detectYDirection = useCallback(
+    (docId, pageNum) => {
+      const pageData = charBoxes[docId]?.[pageNum];
 
-  //     if (!pageData?.boxes || pageData.boxes.length < 2) return;
+      if (!pageData?.boxes || pageData.boxes.length < 2) return;
 
-  //     const firstY = pageData.boxes[0].y; // raw PDF y
-  //     const lastY = pageData.boxes[pageData.boxes.length - 1].y;
-  //     const isFlipped = firstY > lastY; // true if coordinate system increases downward
+      const firstY = pageData.boxes[0].y; // raw PDF y
+      const lastY = pageData.boxes[pageData.boxes.length - 1].y;
+      const isFlipped = firstY > lastY; // true if coordinate system increases downward
 
-  //     setYFlipNeeded((prev) => ({
-  //       ...(prev || {}),
-  //       [docId]: { ...(prev[docId] || {}), [pageNum]: isFlipped },
-  //     }));
-  //   },
-  //   [charBoxes]
-  // );
+      setYFlipNeeded((prev) => ({
+        ...(prev || {}),
+        [docId]: { ...(prev[docId] || {}), [pageNum]: isFlipped },
+      }));
+    },
+    [charBoxes]
+  );
 
   // Extract per-character bounding boxes
-  // const handleGetCharBoxes = useCallback(
-  //   async (docId, page, pageNum, scale) => {
-  //     const textContent = await page.getTextContent();
-  //     const viewport = page.getViewport({ scale });
+  const handleGetCharBoxes = useCallback(
+    async (docId, page, pageNum, scale) => {
+      const textContent = await page.getTextContent();
+      const viewport = page.getViewport({ scale });
 
-  //     if (!yFlipNeeded?.[docId]?.[pageNum]) {
-  //       detectYDirection(docId, pageNum);
-  //     }
+      if (!yFlipNeeded?.[docId]?.[pageNum]) {
+        detectYDirection(docId, pageNum);
+      }
 
-  //     const boxes = [];
-  //     let fullText = "";
+      const boxes = [];
+      let fullText = "";
 
-  //     textContent.items.forEach((item) => {
-  //       const tx = pdfjs.Util.transform(viewport.transform, item.transform);
-  //       const x = tx[4];
-  //       const y = tx[5];
-  //       const width = item.width * scale;
-  //       const height = item.height * scale;
+      textContent.items.forEach((item) => {
+        const tx = pdfjs.Util.transform(viewport.transform, item.transform);
+        const x = tx[4];
+        const y = tx[5];
+        const width = item.width * scale;
+        const height = item.height * scale;
 
-  //       for (const [i, char] of [...item.str].entries()) {
-  //         // const char = item.str[i];
-  //         fullText += char;
+        for (const [i, char] of [...item.str].entries()) {
+          // const char = item.str[i];
+          fullText += char;
 
-  //         let top = yFlipNeeded?.[docId]?.[pageNum]
-  //           ? viewport.height - y
-  //           : y - height;
+          let top = yFlipNeeded?.[docId]?.[pageNum]
+            ? viewport.height - y
+            : y - height;
 
-  //         boxes.push({
-  //           char,
-  //           left: x + (i * width) / item.str.length,
-  //           top,
-  //           y,
-  //           width: width / item.str.length,
-  //           height,
-  //           lineY: top + height / 2,
-  //         });
-  //       }
-  //     });
+          boxes.push({
+            char,
+            left: x + (i * width) / item.str.length,
+            top,
+            y,
+            width: width / item.str.length,
+            height,
+            lineY: top + height / 2,
+          });
+        }
+      });
 
-  //     setCharBoxes((prev) => ({
-  //       ...prev,
-  //       [docId]: {
-  //         ...(prev[docId] || {}),
-  //         [pageNum]: {
-  //           text: fullText,
-  //           boxes,
-  //           length: fullText.length,
-  //           viewportWidth: viewport.width,
-  //           viewportHeight: viewport.height,
-  //         },
-  //       },
-  //     }));
-  //   },
-  //   [detectYDirection, yFlipNeeded]
-  // );
+      setCharBoxes((prev) => ({
+        ...prev,
+        [docId]: {
+          ...(prev[docId] || {}),
+          [pageNum]: {
+            text: fullText,
+            boxes,
+            length: fullText.length,
+            viewportWidth: viewport.width,
+            viewportHeight: viewport.height,
+          },
+        },
+      }));
+    },
+    [detectYDirection, yFlipNeeded]
+  );
 
   // Merge characters into line rectangles using lineY midpoint clustering
-  // const mergeBoxesIntoLines = useCallback((boxes, tolerance = 3) => {
-  //   if (!boxes?.length) return [];
+  const mergeBoxesIntoLines = useCallback((boxes, tolerance = 3) => {
+    if (!boxes?.length) return [];
 
-  //   const lineMap = new Map();
+    const lineMap = new Map();
 
-  //   boxes.forEach((b) => {
-  //     // find an existing cluster within tolerance
-  //     let clusterKey = null;
-  //     for (let k of lineMap.keys()) {
-  //       if (Math.abs(k - b.lineY) <= tolerance) {
-  //         clusterKey = k;
-  //         break;
-  //       }
-  //     }
+    boxes.forEach((b) => {
+      // find an existing cluster within tolerance
+      let clusterKey = null;
+      for (let k of lineMap.keys()) {
+        if (Math.abs(k - b.lineY) <= tolerance) {
+          clusterKey = k;
+          break;
+        }
+      }
 
-  //     // if no cluster found, create a new one
-  //     if (clusterKey === null) clusterKey = b.lineY;
+      // if no cluster found, create a new one
+      if (clusterKey === null) clusterKey = b.lineY;
 
-  //     if (!lineMap.has(clusterKey)) lineMap.set(clusterKey, []);
-  //     lineMap.get(clusterKey).push(b);
-  //   });
+      if (!lineMap.has(clusterKey)) lineMap.set(clusterKey, []);
+      lineMap.get(clusterKey).push(b);
+    });
 
-  //   // build line rectangles
-  //   const lineBoxes = [];
-  //   lineMap.forEach((line) => {
-  //     const x0 = Math.min(...line.map((b) => b.left));
-  //     const x1 = Math.max(...line.map((b) => b.left + b.width));
-  //     const y0 = Math.min(...line.map((b) => b.top));
-  //     const y1 = Math.max(...line.map((b) => b.top + b.height));
-  //     const midY = line.reduce((sum, b) => sum + b.lineY, 0) / line.length;
+    // build line rectangles
+    const lineBoxes = [];
+    lineMap.forEach((line) => {
+      const x0 = Math.min(...line.map((b) => b.left));
+      const x1 = Math.max(...line.map((b) => b.left + b.width));
+      const y0 = Math.min(...line.map((b) => b.top));
+      const y1 = Math.max(...line.map((b) => b.top + b.height));
+      const midY = line.reduce((sum, b) => sum + b.lineY, 0) / line.length;
 
-  //     lineBoxes.push({
-  //       left: x0,
-  //       top: y0,
-  //       width: x1 - x0,
-  //       height: y1 - y0,
-  //       lineY: midY,
-  //     });
-  //   });
+      lineBoxes.push({
+        left: x0,
+        top: y0,
+        width: x1 - x0,
+        height: y1 - y0,
+        lineY: midY,
+      });
+    });
 
-  //   // keep them sorted top-to-bottom
-  //   return lineBoxes.sort((a, b) => a.lineY - b.lineY);
-  // }, []);
+    // keep them sorted top-to-bottom
+    return lineBoxes.sort((a, b) => a.lineY - b.lineY);
+  }, []);
 
   // Check if a box is inside a bbox
-  // const withinBBox = useCallback((box, bbox) => {
-  //   return !(
-  //     box.left + box.width < bbox[0] ||
-  //     box.left > bbox[2] ||
-  //     box.top + box.height < bbox[1] ||
-  //     box.top > bbox[3]
-  //   );
-  // }, []);
+  const withinBBox = useCallback((box, bbox) => {
+    return !(
+      box.left + box.width < bbox[0] ||
+      box.left > bbox[2] ||
+      box.top + box.height < bbox[1] ||
+      box.top > bbox[3]
+    );
+  }, []);
 
   // Render highlights given a logical bbox
-  // const renderBoundingHighlights = useCallback(
-  //   (docId, pageNum, logicalRange) => {
-  //     const pageData = charBoxes?.[docId]?.[pageNum];
-  //     if (!pageData) return null;
+  const renderBoundingHighlights = useCallback(
+    (docId, pageNum, logicalRange) => {
+      const pageData = charBoxes?.[docId]?.[pageNum];
+      if (!pageData) return null;
 
-  //     const { x0, y0, x1, y1, page_start, page_end } = logicalRange;
-  //     const { viewportWidth, viewportHeight } = pageData;
+      const { x0, y0, x1, y1, page_start, page_end } = logicalRange;
+      const { viewportWidth, viewportHeight } = pageData;
 
-  //     // Convert logical bbox into DOM coords
-  //     const H = pageData.viewportHeight;
-  //     const y0_dom = yFlipNeeded ? H - y1 : y0;
-  //     const y1_dom = yFlipNeeded ? H - y0 : y1;
+      // Convert logical bbox into DOM coords
+      const H = pageData.viewportHeight;
+      const y0_dom = yFlipNeeded ? H - y1 : y0;
+      const y1_dom = yFlipNeeded ? H - y0 : y1;
 
-  //     // PageBBox now enforces only vertical limits
-  //     let pageBBox;
-  //     if (page_start === page_end) {
-  //       pageBBox = [0, y0_dom, viewportWidth, y1_dom];
-  //     } else if (pageNum === page_start) {
-  //       pageBBox = [0, y0_dom, viewportWidth, viewportHeight];
-  //     } else if (pageNum === page_end) {
-  //       pageBBox = [0, 0, viewportWidth, y1_dom];
-  //     } else if (pageNum > page_start && pageNum < page_end) {
-  //       pageBBox = [0, 0, viewportWidth, viewportHeight];
-  //     } else {
-  //       return null;
-  //     }
+      // PageBBox now enforces only vertical limits
+      let pageBBox;
+      if (page_start === page_end) {
+        pageBBox = [0, y0_dom, viewportWidth, y1_dom];
+      } else if (pageNum === page_start) {
+        pageBBox = [0, y0_dom, viewportWidth, viewportHeight];
+      } else if (pageNum === page_end) {
+        pageBBox = [0, 0, viewportWidth, y1_dom];
+      } else if (pageNum > page_start && pageNum < page_end) {
+        pageBBox = [0, 0, viewportWidth, viewportHeight];
+      } else {
+        return null;
+      }
 
-  //     // Candidate chars, then merge into lines
-  //     const candidateBoxes = pageData.boxes.filter((b) =>
-  //       withinBBox(b, pageBBox)
-  //     );
-  //     const lineBoxes = mergeBoxesIntoLines(candidateBoxes);
+      // Candidate chars, then merge into lines
+      const candidateBoxes = pageData.boxes.filter((b) =>
+        withinBBox(b, pageBBox)
+      );
+      const lineBoxes = mergeBoxesIntoLines(candidateBoxes);
 
-  //     // Find first/last line for clipping
-  //     let firstLineY = null,
-  //       lastLineY = null;
-  //     if (pageNum === page_start && lineBoxes.length > 0) {
-  //       firstLineY = Math.min(...lineBoxes.map((b) => b.lineY));
-  //     }
-  //     if (pageNum === page_end && lineBoxes.length > 0) {
-  //       lastLineY = Math.max(...lineBoxes.map((b) => b.lineY));
-  //     }
+      // Find first/last line for clipping
+      let firstLineY = null,
+        lastLineY = null;
+      if (pageNum === page_start && lineBoxes.length > 0) {
+        firstLineY = Math.min(...lineBoxes.map((b) => b.lineY));
+      }
+      if (pageNum === page_end && lineBoxes.length > 0) {
+        lastLineY = Math.max(...lineBoxes.map((b) => b.lineY));
+      }
 
-  //     return lineBoxes
-  //       .map((line, idx) => {
-  //         let { left, top, width, height, lineY } = line;
+      return lineBoxes
+        .map((line, idx) => {
+          let { left, top, width, height, lineY } = line;
 
-  //         // Clip horizontally only for first line
-  //         if (
-  //           pageNum === page_start &&
-  //           firstLineY !== null &&
-  //           lineY === firstLineY
-  //         ) {
-  //           const cutoff = Math.max(left, x0);
-  //           width = width - (cutoff - left);
-  //           left = cutoff;
-  //           if (width <= 0) return null;
-  //         }
+          // Clip horizontally only for first line
+          if (
+            pageNum === page_start &&
+            firstLineY !== null &&
+            lineY === firstLineY
+          ) {
+            const cutoff = Math.max(left, x0);
+            width = width - (cutoff - left);
+            left = cutoff;
+            if (width <= 0) return null;
+          }
 
-  //         // Clip horizontally only for last line
-  //         if (
-  //           pageNum === page_end &&
-  //           lastLineY !== null &&
-  //           lineY === lastLineY
-  //         ) {
-  //           const cutoff = Math.min(left + width, x1);
-  //           width = cutoff - left;
-  //           if (width <= 0) return null;
-  //         }
+          // Clip horizontally only for last line
+          if (
+            pageNum === page_end &&
+            lastLineY !== null &&
+            lineY === lastLineY
+          ) {
+            const cutoff = Math.min(left + width, x1);
+            width = cutoff - left;
+            if (width <= 0) return null;
+          }
 
-  //         return (
-  //           <div
-  //             key={`hl-${docId}-${pageNum}-${idx}`}
-  //             style={{
-  //               position: "absolute",
-  //               left,
-  //               top,
-  //               width,
-  //               height,
-  //               backgroundColor: "rgba(142, 43, 254, 0.27)",
-  //               pointerEvents: "none",
-  //             }}
-  //           />
-  //         );
-  //       })
-  //       .filter(Boolean);
-  //   },
-  //   [charBoxes, withinBBox, mergeBoxesIntoLines, yFlipNeeded]
-  // );
+          return (
+            <div
+              key={`hl-${docId}-${pageNum}-${idx}`}
+              style={{
+                position: "absolute",
+                left,
+                top,
+                width,
+                height,
+                backgroundColor: "rgba(142, 43, 254, 0.27)",
+                pointerEvents: "none",
+              }}
+            />
+          );
+        })
+        .filter(Boolean);
+    },
+    [charBoxes, withinBBox, mergeBoxesIntoLines, yFlipNeeded]
+  );
 
   // const renderPageHighlight = (docId, pageNum, logicalRange) => {
   //   const pageData = charBoxes?.[docId]?.[pageNum];
@@ -752,18 +762,19 @@ const PDFViewerPage = memo(() => {
                                 pageRefs={pageRefs}
                                 isVisible={index === activeTabIndex}
                                 isResizing={isResizing}
-                                // pdfWidth={pdfWidth}
+                                pdfWidth={800}
                                 docState={documentStates[doc.id] || {}}
-                                // charBoxes={charBoxes}
                                 pendingAction={pendingScrollActions[doc.id]}
                                 onDocumentLoadSuccess={onDocumentLoadSuccess}
-                                // handleGetCharBoxes={handleGetCharBoxes}
-                                // renderBoundingHighlights={
-                                //   renderBoundingHighlights
-                                // }
+                                handleGetCharBoxes={handleGetCharBoxes}
+                                charBoxes={charBoxes}
+                                renderBoundingHighlights={
+                                  renderBoundingHighlights
+                                }
                                 setPendingScrollActions={
                                   setPendingScrollActions
                                 }
+                                onRegisterScrollTo={handleRegisterScrollTo}
                               />
                             ))}
                           </div>
@@ -900,7 +911,7 @@ const PDFViewerPage = memo(() => {
                       </div>
                     )}
 
-                    {/*  Scroll anchor */}
+                    {/*  Chat Scroll anchor */}
                     <div ref={messagesEndRef} />
                   </div>
                 </div>
