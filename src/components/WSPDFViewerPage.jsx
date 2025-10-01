@@ -10,6 +10,7 @@ import { useWebSocket } from "../hooks/useWebSocket";
 import { StylesSearchContainerWrapper } from "./LandingPage/styles";
 //images
 import UpArrow from "../assets/images/up-arrow.svg";
+import LoadingBanner from "../assets/images/loadingBanner.png";
 //components
 import { Button } from "./ui/button";
 import Navbar from "./Navbar/Navbar";
@@ -23,16 +24,30 @@ import { useChatContext } from "../context/ChatContext";
 // Configure PDF.js worker - simple local approach
 pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.js";
 
+//loop the loaders
+const loadingTexts = [
+  "⌛ Indexing Schedules with machine-like patience...",
+  "⌛ Parsing the legislative intent behind Section headings...",
+  "⌛ Cross-checking clauses faster than you can say ‘proviso...",
+  "⌛ Untangling provisos in record time...",
+  "⌛ Cross-checking clauses like an auditor before a deadline...",
+  "⌛ Spotting hidden Explanations between the lines...",
+  "⌛ Consulting the spirit of the legislature (takes a moment)...",
+  "⌛ Tracing cross-references across the Act’s maze...",
+  "⌛ Flipping through schedules at lightning speed...",
+];
+
 //PDFViewerPage component
 const PDFViewerPage = memo(() => {
   const navigate = useNavigate();
 
   // PDF state
-  const [sidebarWidth, setSidebarWidth] = useState("350");
+  const [sidebarWidth, setSidebarWidth] = useState("40");
   const [isResizing, setIsResizing] = useState(false);
   // const [pdfWidth, setPdfWidth] = useState(800);
   const [documentStates, setDocumentStates] = useState({});
   const [pendingScrollActions, setPendingScrollActions] = useState({});
+  const [currentText, setCurrentText] = useState(loadingTexts[0]);
 
   //highlight state
   const [charBoxes, setCharBoxes] = useState({
@@ -47,7 +62,6 @@ const PDFViewerPage = memo(() => {
   const [yFlipNeeded, setYFlipNeeded] = useState({});
 
   //refs
-  const sidebarWidthRef = useRef(sidebarWidth);
   const resizeRafId = useRef();
   const messagesEndRef = useRef(null);
   const pageRefs = useRef({});
@@ -87,7 +101,7 @@ const PDFViewerPage = memo(() => {
 
       const targetPage = Math.max(1, Math.min(docState.numPages, page));
 
-      // ✅ call the registered scroll function
+      //call the registered scroll function
       const fn = scrollFnsRef.current[docId];
       if (fn) {
         fn(targetPage);
@@ -244,24 +258,22 @@ const PDFViewerPage = memo(() => {
     (e) => {
       if (!isResizing) return;
 
-      const newWidth = Math.max(
-        350,
-        Math.min(600, window.innerWidth - e.clientX)
-      );
-      sidebarWidthRef.current = newWidth;
+      const newWidthPx = window.innerWidth - e.clientX;
+      const newWidthPercent = (newWidthPx / window.innerWidth) * 100;
+
+      const clampedWidth = Math.max(20, Math.min(60, newWidthPercent));
 
       // Directly update DOM for smooth dragging
       const sidebar = document.getElementById("sidebar");
       if (sidebar) {
-        sidebar.style.width = `${newWidth}px`;
+        sidebar.style.width = `${clampedWidth}%`;
       }
-
       if (resizeRafId.current) {
         cancelAnimationFrame(resizeRafId.current);
       }
 
       resizeRafId.current = requestAnimationFrame(() => {
-        setSidebarWidth(newWidth);
+        setSidebarWidth(clampedWidth);
       });
     },
     [isResizing]
@@ -643,6 +655,21 @@ const PDFViewerPage = memo(() => {
   //   );
   // };
 
+  //loading text function
+  const loopLoaderTexts = useCallback(() => {
+    const interval = setInterval(() => {
+      setCurrentText(
+        loadingTexts[Math.floor(Math.random() * loadingTexts.length)]
+      );
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    loopLoaderTexts();
+  }, [isLoading, loopLoaderTexts]);
+
   return (
     <div className="h-screen bg-[#151415]  flex flex-col overflow-hidden">
       <Navbar />
@@ -662,13 +689,14 @@ const PDFViewerPage = memo(() => {
               <SidebarComponent />
             </motion.aside>
             <div className="flex-1 flex overflow-hidden ">
-              {activeDocuments.length > 0 && (
+              {/* pdf section */}
+              {activeDocuments.length > 0 ? (
                 <div
                   className=" flex flex-col"
                   style={{
-                    width: `calc(100% - ${sidebarWidth}px)`,
+                    width: `calc(99.8% - ${sidebarWidth}%)`,
                     transition: isResizing ? "none" : "0.3s linear",
-                    minWidth: "350px",
+                    minWidth: "40%",
                   }}
                 >
                   {/* Document Tabs */}
@@ -746,7 +774,7 @@ const PDFViewerPage = memo(() => {
                   </div>
                   {activeDocuments.length > 0 && (
                     <div
-                      className="flex-1 bg-[#1C1B1D] overflow-auto p-4 pdf-container mx-[20px]  custom-scrollbar-pdf"
+                      className="flex-1 bg-[#1C1B1D] overflow-hidden p-4 pdf-container mx-[20px]  custom-scrollbar-pdf"
                       style={{
                         opacity: isResizing ? 0.7 : 1,
                         transition: "opacity 0.1s ease",
@@ -792,24 +820,54 @@ const PDFViewerPage = memo(() => {
                     </div>
                   )}
                 </div>
+              ) : (
+                <div
+                  className=" h-full flex justify-center items-center flex-col text-white text-center"
+                  style={{
+                    width: `calc(99.8% - ${sidebarWidth}%)`,
+                    transition: isResizing ? "none" : "0.3s linear",
+                    minWidth: "40%",
+                  }}
+                >
+                  <img
+                    src={LoadingBanner}
+                    alt="banner"
+                    loading="lazy"
+                    className="mb-[47px] object-contain w-[50%]"
+                  />
+                  <div className="max-w-[344px]">
+                    <h1 className="mb-[8px] text-[31px] font-bold">
+                      Start with a question.
+                    </h1>
+                    <p className="text-[14px] font-normal">
+                      Ask in the chat. We’ll fetch the right document, highlight
+                      the exact text, and give you accurate answers you can
+                      trust, no hallucinations.
+                    </p>
+                  </div>
+                </div>
               )}
 
+              {/* resize bar */}
               {activeDocuments?.length > 0 && (
                 <div
                   className="w-1 bg-[#333234] hover:bg-[grey] cursor-col-resize transition-colors select-none"
                   onMouseDown={handleMouseDown}
-                  style={{ userSelect: "none" }}
+                  style={{ userSelect: "none", minWidth: "0.2%" }}
                 />
               )}
 
+              {/* chat section */}
               <div
                 className="bg-[#1C1B1D] border-l border-[#333234] flex flex-col flex-shrink-0  "
                 style={{
                   width:
                     activeDocuments?.length === 0
-                      ? "100%"
-                      : `${sidebarWidth}px`,
+                      ? "99.8%"
+                      : `${sidebarWidth}%`,
                   transition: isResizing ? "none" : "0.3s linear",
+                  minWidth: "20%",
+                  maxWidth: "60%",
                 }}
               >
                 <div className="flex-1 p-6 overflow-y-auto overflow-x-hidden pb-[120px] custom-scrollbar">
@@ -906,7 +964,7 @@ const PDFViewerPage = memo(() => {
 
                     {isLoading && (
                       <div className="flex gap-5 text-[#5a5959] items-center">
-                        Generating response...
+                        {currentText}
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600 mt-3"></div>
                       </div>
                     )}

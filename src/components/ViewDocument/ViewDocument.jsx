@@ -13,7 +13,6 @@ const DocumentViewer = memo((props) => {
   const {
     doc,
     pageRefs,
-    isVisible,
     isResizing,
     pendingAction,
     onDocumentLoadSuccess,
