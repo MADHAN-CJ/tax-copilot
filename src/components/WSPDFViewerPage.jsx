@@ -704,7 +704,7 @@ const PDFViewerPage = memo(() => {
             </motion.aside>
             <div className="flex overflow-hidden w-full">
               {/* pdf section */}
-              {activeDocuments.length < 0 ? (
+              {activeDocuments.length > 0 ? (
                 <div
                   className=" flex flex-col"
                   style={{
