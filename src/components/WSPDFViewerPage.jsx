@@ -48,7 +48,7 @@ const PDFViewerPage = memo(() => {
   const [documentStates, setDocumentStates] = useState({});
   const [pendingScrollActions, setPendingScrollActions] = useState({});
   const [currentText, setCurrentText] = useState(loadingTexts[0]);
-
+  const [references, setReferences] = useState([]);
   //highlight state
   const [charBoxes, setCharBoxes] = useState({
     x0: 44.9999885559082,
@@ -118,6 +118,7 @@ const PDFViewerPage = memo(() => {
         setPendingScrollActions((prev) => ({
           ...prev,
           [docId]: { targetPage },
+          isAuto: false,
         }));
       }
     },
@@ -381,6 +382,14 @@ const PDFViewerPage = memo(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
+  }, [messages]);
+
+  useEffect(() => {
+    const allReferences = messages
+      .filter((m) => m.type === "ai" && Array.isArray(m.chunks))
+      .flatMap((m) => m.chunks);
+    console.log(allReferences);
+    setReferences(allReferences);
   }, [messages]);
 
   //highlight function
@@ -803,6 +812,9 @@ const PDFViewerPage = memo(() => {
                                   setPendingScrollActions
                                 }
                                 onRegisterScrollTo={handleRegisterScrollTo}
+                                references={references.filter(
+                                  (r) => r.source === doc.name
+                                )}
                               />
                             ))}
                           </div>

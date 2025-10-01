@@ -22,9 +22,13 @@ const DocumentViewer = memo((props) => {
     charBoxes,
     handleGetCharBoxes,
     renderBoundingHighlights,
+    references,
   } = props;
 
+  //refs
   const containerRef = useRef(null);
+  const hasAutoScrolledRef = useRef(false);
+  //states
   const [numPages, setNumPages] = useState(0);
   const [range, setRange] = useState([0, 0]);
 
@@ -127,18 +131,29 @@ const DocumentViewer = memo((props) => {
     containerRef.current.scrollTo({ top, behavior: "smooth" });
   }, []);
 
+  //autoscroll to 1st reference
+  useEffect(() => {
+    if (!references || references.length === 0) return;
+    if (numPages === 0) return;
+    if (hasAutoScrolledRef.current) return;
+    // get the first reference (lowest page_start)
+    const firstRef = references.reduce((min, r) =>
+      r.page_start < min.page_start ? r : min
+    );
+
+    const targetPage = Math.floor(firstRef.page_start);
+
+    setTimeout(() => {
+      scrollToPage(targetPage);
+      hasAutoScrolledRef.current = true;
+    }, 200);
+  }, [references, numPages, scrollToPage]);
+
   useEffect(() => {
     if (onRegisterScrollTo && doc?.id) {
       onRegisterScrollTo(doc.id, scrollToPage);
     }
   }, [onRegisterScrollTo, doc?.id, scrollToPage]);
-
-  // support pendingAction
-  useEffect(() => {
-    if (pendingAction?.targetPage) {
-      scrollToPage(pendingAction.targetPage);
-    }
-  }, [pendingAction, scrollToPage]);
 
   // Loading state while we don't know numPages
   if (!numPages) {
