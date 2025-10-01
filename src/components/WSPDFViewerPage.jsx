@@ -7,10 +7,15 @@ import { motion } from "framer-motion";
 //hooks
 import { useWebSocket } from "../hooks/useWebSocket";
 //styles
-import { StylesSearchContainerWrapper } from "./LandingPage/styles";
+import {
+  StylesLandingPageBottomLeft,
+  StylesSearchContainerWrapper,
+} from "./LandingPage/styles";
 //images
 import UpArrow from "../assets/images/up-arrow.svg";
 import LoadingBanner from "../assets/images/loadingBanner.png";
+import Bullet from "../assets/images/bullet.svg";
+import ComingSoon from "../assets/images/coming-soon.svg";
 //components
 import { Button } from "./ui/button";
 import Navbar from "./Navbar/Navbar";
@@ -699,7 +704,7 @@ const PDFViewerPage = memo(() => {
             </motion.aside>
             <div className="flex overflow-hidden w-full">
               {/* pdf section */}
-              {activeDocuments.length > 0 ? (
+              {activeDocuments.length < 0 ? (
                 <div
                   className=" flex flex-col"
                   style={{
@@ -843,34 +848,37 @@ const PDFViewerPage = memo(() => {
                     maxWidth: "80%",
                   }}
                 >
-                  <img
-                    src={LoadingBanner}
-                    alt="banner"
-                    loading="lazy"
-                    className="mb-[47px] object-contain w-[50%]"
-                  />
-                  <div className="max-w-[344px]">
-                    <h1 className="mb-[8px] text-[31px] font-bold">
-                      Start with a question.
-                    </h1>
-                    <p className="text-[14px] font-normal">
-                      Ask in the chat. We’ll fetch the right document, highlight
-                      the exact text, and give you accurate answers you can
-                      trust, no hallucinations.
-                    </p>
-                  </div>
-                  <div className="">
-                    <p>Currently supporting</p>
-                    <p>
-                      Income-tax Act, 1961 (as amended by the Finance Act, 2025)
-                    </p>
-                    <p>Coming soon</p>
-                    <p>
-                      GST, International Tax, Transfer Pricing, Company & SEBI
-                      Laws, Insolvency & Bankruptcy Code, FEMA, Banking &
-                      Insurance, Competition Law, Accounts & Audit, Other Indian
-                      Acts & Rules
-                    </p>
+                  <div className="max-w-[400px] text-center flex  flex-col gap-[47px]">
+                    <img src={LoadingBanner} alt="banner" loading="lazy" />
+                    <div>
+                      <h1 className="mb-[8px] text-[31px] font-bold">
+                        Start with a question.
+                      </h1>
+                      <p className="text-[14px] font-normal">
+                        Ask in the chat. We’ll fetch the right document,
+                        highlight the exact text, and give you accurate answers
+                        you can trust, no hallucinations.
+                      </p>
+                    </div>
+                    <StylesLandingPageBottomLeft>
+                      <div>
+                        <p className="bottom-title ">Currently supporting</p>
+                        <p className="bottom-body ">
+                          <img src={Bullet} alt="bullet" /> Income-tax Act, 1961
+                          (as amended by the Finance Act, 2025)
+                        </p>
+                      </div>
+                      <div>
+                        <p className="bottom-title ">Coming soon</p>
+                        <div className="bottom-body ">
+                          <img src={ComingSoon} alt="bullet" />
+                          GST, International Tax, Transfer Pricing, Company &
+                          SEBI Laws, Insolvency & Bankruptcy Code, FEMA, Banking
+                          & Insurance, Competition Law, Accounts & Audit, Other
+                          Indian Acts & Rules
+                        </div>
+                      </div>
+                    </StylesLandingPageBottomLeft>
                   </div>
                 </div>
               )}

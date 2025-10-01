@@ -489,3 +489,31 @@ export const StylesHistoryWrapper = styled.div`
     }
   }
 `;
+
+export const StylesLandingPageBottomLeft = styled.div`
+  .bottom-title {
+    color: #827f88;
+    font-family: "DM Sans";
+    font-size: 14px;
+    font-style: normal;
+    font-weight: 500;
+    line-height: 18px;
+    letter-spacing: -0.28px;
+    text-align: left;
+    margin-bottom: 5px;
+  }
+  .bottom-body {
+    text-align: left;
+    color: #fff;
+    font-family: "DM Sans";
+    font-size: 14px;
+    font-style: normal;
+    font-weight: 400;
+    line-height: 18px;
+    letter-spacing: -0.28px;
+    display: flex;
+    gap: 5px;
+    align-items: start;
+    margin-bottom: 12px;
+  }
+`;
