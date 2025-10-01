@@ -843,7 +843,7 @@ const PDFViewerPage = memo(() => {
                   className=" h-full flex justify-center items-center flex-col text-white text-center"
                   style={{
                     transition: isResizing ? "none" : "0.3s linear",
-                    width: `calc(100% - ${sidebarWidth}%)`,
+                    width: `calc(99.8% - ${sidebarWidth}%)`,
                     minWidth: "40%",
                     maxWidth: "80%",
                   }}
@@ -852,12 +852,11 @@ const PDFViewerPage = memo(() => {
                     <img src={LoadingBanner} alt="banner" loading="lazy" />
                     <div>
                       <h1 className="mb-[8px] text-[31px] font-bold">
-                        Start with a question.
+                        Working on your answer…
                       </h1>
                       <p className="text-[14px] font-normal">
-                        Ask in the chat. We’ll fetch the right document,
-                        highlight the exact text, and give you accurate answers
-                        you can trust, no hallucinations.
+                        Scanning the Act, fetching the right section, and
+                        turning it into clear text you can trust.
                       </p>
                     </div>
                     <StylesLandingPageBottomLeft>
