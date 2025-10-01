@@ -35,16 +35,9 @@ const PDFViewerPage = memo(() => {
   const [pendingScrollActions, setPendingScrollActions] = useState({});
 
   //highlight state
-  // const [charBoxes, setCharBoxes] = useState({
-  //   x0: 44.9999885559082,
-  //   y0: 42.527969360351565,
-  //   x1: 567.91436767578122,
-  //   y1: 710.29193115234385,
-  //   page_start: 324,
-  //   page_end: 325,
-  // });
-
-  // const [yFlipNeeded, setYFlipNeeded] = useState({});
+  const [charBoxes, setCharBoxes] = useState({});
+  const [yFlipNeeded, setYFlipNeeded] = useState({});
+  const [activeChunk, setActiveChunk] = useState(null);
 
   //refs
   const sidebarWidthRef = useRef(sidebarWidth);
@@ -117,6 +110,15 @@ const PDFViewerPage = memo(() => {
   // Handle reference button click
   const handleReferenceClick = useCallback(
     (chunk) => {
+      // Set this chunk as active for highlighting
+      console.log("\n🎯 === REFERENCE CLICKED ===");
+      console.log("Chunk source:", chunk.source);
+      console.log("Chunk page_start:", chunk.page_start, "page_end:", chunk.page_end);
+      console.log("All page_bboxes keys:", Object.keys(chunk.page_bboxes || {}));
+      console.log("Full page_bboxes:", chunk.page_bboxes);
+      console.log("First 200 chars of chunk text:", chunk.text?.substring(0, 200));
+      setActiveChunk(chunk);
+
       const targetPage = Math.floor(chunk.page_start);
       // Find the document that contains this chunk
       const targetDocIndex = activeDocuments.findIndex(
@@ -354,228 +356,318 @@ const PDFViewerPage = memo(() => {
     }
   }, [messages]);
 
-  //highlight function
-  // Detect PDF coordinate system direction (flip or not)
-  // const detectYDirection = useCallback(
-  //   (docId, pageNum) => {
-  //     const pageData = charBoxes[docId]?.[pageNum];
-
-  //     if (!pageData?.boxes || pageData.boxes.length < 2) return;
-
-  //     const firstY = pageData.boxes[0].y; // raw PDF y
-  //     const lastY = pageData.boxes[pageData.boxes.length - 1].y;
-  //     const isFlipped = firstY > lastY; // true if coordinate system increases downward
-
-  //     setYFlipNeeded((prev) => ({
-  //       ...(prev || {}),
-  //       [docId]: { ...(prev[docId] || {}), [pageNum]: isFlipped },
-  //     }));
-  //   },
-  //   [charBoxes]
-  // );
-
   // Extract per-character bounding boxes
-  // const handleGetCharBoxes = useCallback(
-  //   async (docId, page, pageNum, scale) => {
-  //     const textContent = await page.getTextContent();
-  //     const viewport = page.getViewport({ scale });
+  const handleGetCharBoxes = useCallback(
+    async (docId, page, pageNum, scale) => {
+      console.log(`📏 Scale factor for page ${pageNum}: ${scale}`);
+      const textContent = await page.getTextContent();
+      const viewport = page.getViewport({ scale });
 
-  //     if (!yFlipNeeded?.[docId]?.[pageNum]) {
-  //       detectYDirection(docId, pageNum);
-  //     }
+      const boxes = [];
+      let fullText = "";
 
-  //     const boxes = [];
-  //     let fullText = "";
+      textContent.items.forEach((item) => {
+        const tx = pdfjs.Util.transform(viewport.transform, item.transform);
+        const x = tx[4];
+        const y = tx[5];
+        const width = item.width * scale;
+        const height = item.height * scale;
 
-  //     textContent.items.forEach((item) => {
-  //       const tx = pdfjs.Util.transform(viewport.transform, item.transform);
-  //       const x = tx[4];
-  //       const y = tx[5];
-  //       const width = item.width * scale;
-  //       const height = item.height * scale;
+        for (const [i, char] of [...item.str].entries()) {
+          fullText += char;
 
-  //       for (const [i, char] of [...item.str].entries()) {
-  //         // const char = item.str[i];
-  //         fullText += char;
+          boxes.push({
+            char,
+            left: x + (i * width) / item.str.length,
+            top: y - height, // Will be corrected later if needed
+            y, // Store raw y for flip detection
+            width: width / item.str.length,
+            height,
+            lineY: 0, // Will be set after flip detection
+          });
+        }
+      });
 
-  //         let top = yFlipNeeded?.[docId]?.[pageNum]
-  //           ? viewport.height - y
-  //           : y - height;
+      // Detect Y-axis direction from the boxes we just created
+      const firstY = boxes.length > 0 ? boxes[0].y : 0;
+      const lastY = boxes.length > 1 ? boxes[boxes.length - 1].y : 0;
+      const isFlipped = firstY > lastY;
 
-  //         boxes.push({
-  //           char,
-  //           left: x + (i * width) / item.str.length,
-  //           top,
-  //           y,
-  //           width: width / item.str.length,
-  //           height,
-  //           lineY: top + height / 2,
-  //         });
-  //       }
-  //     });
+      console.log(`📊 Y-flip detection for page ${pageNum}: firstY=${firstY}, lastY=${lastY}, isFlipped=${isFlipped}`);
 
-  //     setCharBoxes((prev) => ({
-  //       ...prev,
-  //       [docId]: {
-  //         ...(prev[docId] || {}),
-  //         [pageNum]: {
-  //           text: fullText,
-  //           boxes,
-  //           length: fullText.length,
-  //           viewportWidth: viewport.width,
-  //           viewportHeight: viewport.height,
-  //         },
-  //       },
-  //     }));
-  //   },
-  //   [detectYDirection, yFlipNeeded]
-  // );
+      // Update flip state
+      setYFlipNeeded((prev) => ({
+        ...(prev || {}),
+        [docId]: { ...(prev[docId] || {}), [pageNum]: isFlipped },
+      }));
+
+      // Now correct the top and lineY values based on flip detection
+      boxes.forEach((box) => {
+        box.top = isFlipped ? viewport.height - box.y : box.y - box.height;
+        box.lineY = box.top + box.height / 2;
+      });
+
+      setCharBoxes((prev) => ({
+        ...prev,
+        [docId]: {
+          ...(prev[docId] || {}),
+          [pageNum]: {
+            text: fullText,
+            boxes,
+            length: fullText.length,
+            viewportWidth: viewport.width,
+            viewportHeight: viewport.height,
+            scale, // Store scale for bbox conversion
+          },
+        },
+      }));
+    },
+    []
+  );
 
   // Merge characters into line rectangles using lineY midpoint clustering
-  // const mergeBoxesIntoLines = useCallback((boxes, tolerance = 3) => {
-  //   if (!boxes?.length) return [];
+  const mergeBoxesIntoLines = useCallback((boxes, tolerance = 3) => {
+    if (!boxes?.length) return [];
 
-  //   const lineMap = new Map();
+    const lineMap = new Map();
 
-  //   boxes.forEach((b) => {
-  //     // find an existing cluster within tolerance
-  //     let clusterKey = null;
-  //     for (let k of lineMap.keys()) {
-  //       if (Math.abs(k - b.lineY) <= tolerance) {
-  //         clusterKey = k;
-  //         break;
-  //       }
-  //     }
+    boxes.forEach((b) => {
+      // find an existing cluster within tolerance
+      let clusterKey = null;
+      for (let k of lineMap.keys()) {
+        if (Math.abs(k - b.lineY) <= tolerance) {
+          clusterKey = k;
+          break;
+        }
+      }
 
-  //     // if no cluster found, create a new one
-  //     if (clusterKey === null) clusterKey = b.lineY;
+      // if no cluster found, create a new one
+      if (clusterKey === null) clusterKey = b.lineY;
 
-  //     if (!lineMap.has(clusterKey)) lineMap.set(clusterKey, []);
-  //     lineMap.get(clusterKey).push(b);
-  //   });
+      if (!lineMap.has(clusterKey)) lineMap.set(clusterKey, []);
+      lineMap.get(clusterKey).push(b);
+    });
 
-  //   // build line rectangles
-  //   const lineBoxes = [];
-  //   lineMap.forEach((line) => {
-  //     const x0 = Math.min(...line.map((b) => b.left));
-  //     const x1 = Math.max(...line.map((b) => b.left + b.width));
-  //     const y0 = Math.min(...line.map((b) => b.top));
-  //     const y1 = Math.max(...line.map((b) => b.top + b.height));
-  //     const midY = line.reduce((sum, b) => sum + b.lineY, 0) / line.length;
+    // build line rectangles
+    const lineBoxes = [];
+    lineMap.forEach((line) => {
+      const x0 = Math.min(...line.map((b) => b.left));
+      const x1 = Math.max(...line.map((b) => b.left + b.width));
+      const y0 = Math.min(...line.map((b) => b.top));
+      const y1 = Math.max(...line.map((b) => b.top + b.height));
+      const midY = line.reduce((sum, b) => sum + b.lineY, 0) / line.length;
 
-  //     lineBoxes.push({
-  //       left: x0,
-  //       top: y0,
-  //       width: x1 - x0,
-  //       height: y1 - y0,
-  //       lineY: midY,
-  //     });
-  //   });
+      lineBoxes.push({
+        left: x0,
+        top: y0,
+        width: x1 - x0,
+        height: y1 - y0,
+        lineY: midY,
+      });
+    });
 
-  //   // keep them sorted top-to-bottom
-  //   return lineBoxes.sort((a, b) => a.lineY - b.lineY);
-  // }, []);
+    // keep them sorted top-to-bottom
+    return lineBoxes.sort((a, b) => a.lineY - b.lineY);
+  }, []);
 
   // Check if a box is inside a bbox
-  // const withinBBox = useCallback((box, bbox) => {
-  //   return !(
-  //     box.left + box.width < bbox[0] ||
-  //     box.left > bbox[2] ||
-  //     box.top + box.height < bbox[1] ||
-  //     box.top > bbox[3]
-  //   );
-  // }, []);
+  const withinBBox = useCallback((box, bbox) => {
+    return !(
+      box.left + box.width < bbox[0] ||
+      box.left > bbox[2] ||
+      box.top + box.height < bbox[1] ||
+      box.top > bbox[3]
+    );
+  }, []);
 
-  // Render highlights given a logical bbox
-  // const renderBoundingHighlights = useCallback(
-  //   (docId, pageNum, logicalRange) => {
-  //     const pageData = charBoxes?.[docId]?.[pageNum];
-  //     if (!pageData) return null;
+  // Render highlights given pagewise bboxes
+  const renderBoundingHighlights = useCallback(
+    (docId, pageNum, page_bboxes) => {
+      console.log(`\n=== renderBoundingHighlights DEBUG for page ${pageNum} ===`);
+      console.log("page_bboxes received:", page_bboxes);
+      console.log("charBoxes for docId:", charBoxes?.[docId]?.[pageNum]);
 
-  //     const { x0, y0, x1, y1, page_start, page_end } = logicalRange;
-  //     const { viewportWidth, viewportHeight } = pageData;
+      const pageData = charBoxes?.[docId]?.[pageNum];
+      if (!pageData || !page_bboxes) {
+        console.log("❌ No pageData or page_bboxes, returning null");
+        return null;
+      }
 
-  //     // Convert logical bbox into DOM coords
-  //     const H = pageData.viewportHeight;
-  //     const y0_dom = yFlipNeeded ? H - y1 : y0;
-  //     const y1_dom = yFlipNeeded ? H - y0 : y1;
+      // Simple lookup: does this page have a bbox?
+      const bbox = page_bboxes[pageNum];
+      if (!bbox) {
+        console.log(`❌ No bbox for page ${pageNum}, available pages:`, Object.keys(page_bboxes));
+        return null;
+      }
 
-  //     // PageBBox now enforces only vertical limits
-  //     let pageBBox;
-  //     if (page_start === page_end) {
-  //       pageBBox = [0, y0_dom, viewportWidth, y1_dom];
-  //     } else if (pageNum === page_start) {
-  //       pageBBox = [0, y0_dom, viewportWidth, viewportHeight];
-  //     } else if (pageNum === page_end) {
-  //       pageBBox = [0, 0, viewportWidth, y1_dom];
-  //     } else if (pageNum > page_start && pageNum < page_end) {
-  //       pageBBox = [0, 0, viewportWidth, viewportHeight];
-  //     } else {
-  //       return null;
-  //     }
+      console.log(`✅ Found bbox for page ${pageNum}:`, bbox);
 
-  //     // Candidate chars, then merge into lines
-  //     const candidateBoxes = pageData.boxes.filter((b) =>
-  //       withinBBox(b, pageBBox)
-  //     );
-  //     const lineBoxes = mergeBoxesIntoLines(candidateBoxes);
+      let [x0, y0, x1, y1] = bbox;
+      const { viewportWidth, viewportHeight, scale } = pageData;
 
-  //     // Find first/last line for clipping
-  //     let firstLineY = null,
-  //       lastLineY = null;
-  //     if (pageNum === page_start && lineBoxes.length > 0) {
-  //       firstLineY = Math.min(...lineBoxes.map((b) => b.lineY));
-  //     }
-  //     if (pageNum === page_end && lineBoxes.length > 0) {
-  //       lastLineY = Math.max(...lineBoxes.map((b) => b.lineY));
-  //     }
+      console.log("📐 Viewport dimensions:", { viewportWidth, viewportHeight });
+      console.log("📏 Scale factor:", scale);
+      console.log("📦 Raw bbox from backend (native resolution): [x0, y0, x1, y1] =", [x0, y0, x1, y1]);
 
-  //     return lineBoxes
-  //       .map((line, idx) => {
-  //         let { left, top, width, height, lineY } = line;
+      // Scale backend bbox to match rendered coordinates
+      if (scale) {
+        x0 *= scale;
+        y0 *= scale;
+        x1 *= scale;
+        y1 *= scale;
+        console.log("📦 Scaled bbox (rendered resolution): [x0, y0, x1, y1] =", [x0, y0, x1, y1]);
+      }
 
-  //         // Clip horizontally only for first line
-  //         if (
-  //           pageNum === page_start &&
-  //           firstLineY !== null &&
-  //           lineY === firstLineY
-  //         ) {
-  //           const cutoff = Math.max(left, x0);
-  //           width = width - (cutoff - left);
-  //           left = cutoff;
-  //           if (width <= 0) return null;
-  //         }
+      // Sample first and last char boxes to understand coordinate system
+      if (pageData.boxes.length > 0) {
+        console.log("📍 First char box:", pageData.boxes[0]);
+        console.log("📍 Last char box:", pageData.boxes[pageData.boxes.length - 1]);
+        console.log("📄 Full text length:", pageData.text.length);
+        console.log("📝 First 100 chars:", pageData.text.substring(0, 100));
+      }
 
-  //         // Clip horizontally only for last line
-  //         if (
-  //           pageNum === page_end &&
-  //           lastLineY !== null &&
-  //           lineY === lastLineY
-  //         ) {
-  //           const cutoff = Math.min(left + width, x1);
-  //           width = cutoff - left;
-  //           if (width <= 0) return null;
-  //         }
+      // Convert bbox to DOM coords (handle Y-flip if needed)
+      const H = viewportHeight;
+      const isFlipped = yFlipNeeded?.[docId]?.[pageNum];
+      console.log("🔄 Y-axis isFlipped?", isFlipped);
 
-  //         return (
-  //           <div
-  //             key={`hl-${docId}-${pageNum}-${idx}`}
-  //             style={{
-  //               position: "absolute",
-  //               left,
-  //               top,
-  //               width,
-  //               height,
-  //               backgroundColor: "rgba(142, 43, 254, 0.27)",
-  //               pointerEvents: "none",
-  //             }}
-  //           />
-  //         );
-  //       })
-  //       .filter(Boolean);
-  //   },
-  //   [charBoxes, withinBBox, mergeBoxesIntoLines, yFlipNeeded]
-  // );
+      // Backend bbox is in PDF space (origin bottom-left)
+      // Char boxes are in DOM space (origin top-left) when isFlipped=false
+      // Need to flip bbox Y coords AND swap y0/y1
+      let y0_dom, y1_dom;
+      if (isFlipped) {
+        // Both in same coordinate system already
+        y0_dom = y0;
+        y1_dom = y1;
+      } else {
+        // Backend bbox in PDF space, char boxes in DOM space
+        // In PDF: y0=bottom, y1=top. In DOM: need top first
+        y0_dom = H - y1;  // PDF top becomes DOM top
+        y1_dom = H - y0;  // PDF bottom becomes DOM bottom
+      }
+
+      console.log("🎯 Converted to DOM coords: y0_dom =", y0_dom, ", y1_dom =", y1_dom);
+
+      // Check for out-of-bounds
+      if (y0_dom < 0 || y1_dom > H || y0_dom > H || y1_dom < 0) {
+        console.warn("⚠️ WARNING: Bbox extends beyond page bounds!");
+        console.warn(`   Page height: ${H}, bbox top: ${y0_dom.toFixed(2)}, bbox bottom: ${y1_dom.toFixed(2)}`);
+        console.warn("   This suggests scale mismatch or backend using different page dimensions");
+
+        // Clamp to page bounds
+        y0_dom = Math.max(0, Math.min(H, y0_dom));
+        y1_dom = Math.max(0, Math.min(H, y1_dom));
+        console.warn(`   Clamped to: top=${y0_dom.toFixed(2)}, bottom=${y1_dom.toFixed(2)}`);
+      }
+
+      // Use full width, constrain by vertical bbox
+      const pageBBox = [0, y0_dom, viewportWidth, y1_dom];
+      console.log("📦 Final pageBBox for filtering: [left, top, right, bottom] =", pageBBox);
+
+      // Debug: show some char boxes in the expected region
+      console.log("🔎 Sampling char boxes around expected region:");
+      const sampleBoxes = pageData.boxes.filter((_, idx) => idx % 100 === 0).slice(0, 10);
+      sampleBoxes.forEach((box, idx) => {
+        console.log(`  Sample ${idx}: char="${box.char}", top=${box.top.toFixed(2)}, left=${box.left.toFixed(2)}, y_raw=${box.y.toFixed(2)}`);
+      });
+
+      // Candidate chars, then merge into lines
+      const candidateBoxes = pageData.boxes.filter((b) =>
+        withinBBox(b, pageBBox)
+      );
+      console.log("🔍 Filtered candidateBoxes count:", candidateBoxes.length, "out of", pageData.boxes.length);
+
+      if (candidateBoxes.length === 0) {
+        console.log("❌ NO CANDIDATES! Checking why...");
+        console.log("   Expected range: top between", y0_dom.toFixed(2), "and", y1_dom.toFixed(2));
+        console.log("   Char boxes range: top from", Math.min(...pageData.boxes.map(b => b.top)).toFixed(2),
+                    "to", Math.max(...pageData.boxes.map(b => b.top)).toFixed(2));
+      }
+
+      if (candidateBoxes.length > 0) {
+        console.log("📍 First candidate:", candidateBoxes[0]);
+        console.log("📍 Last candidate:", candidateBoxes[candidateBoxes.length - 1]);
+        // Show text content of candidates
+        const candidateText = candidateBoxes.map(b => b.char).join('');
+        console.log("📝 Candidate text:", candidateText.substring(0, 200));
+      }
+
+      const lineBoxes = mergeBoxesIntoLines(candidateBoxes);
+      console.log("📏 Merged into line boxes:", lineBoxes.length, "lines");
+      if (lineBoxes.length > 0) {
+        console.log("📍 First line box:", lineBoxes[0]);
+        console.log("📍 Last line box:", lineBoxes[lineBoxes.length - 1]);
+      }
+
+      if (lineBoxes.length === 0) {
+        console.log("❌ No line boxes created, returning null");
+        return null;
+      }
+
+      // Find first/last line for horizontal clipping
+      const firstLineY = Math.min(...lineBoxes.map((b) => b.lineY));
+      const lastLineY = Math.max(...lineBoxes.map((b) => b.lineY));
+      console.log("✂️ Will clip first line at x0 =", x0, "and last line at x1 =", x1);
+
+      const highlights = lineBoxes
+        .map((line, idx) => {
+          let { left, top, width, height, lineY } = line;
+
+          // Clip horizontally only for first line
+          if (lineY === firstLineY) {
+            const cutoff = Math.max(left, x0);
+            width = width - (cutoff - left);
+            left = cutoff;
+            if (width <= 0) return null;
+          }
+
+          // Clip horizontally only for last line
+          if (lineY === lastLineY) {
+            const cutoff = Math.min(left + width, x1);
+            width = cutoff - left;
+            if (width <= 0) return null;
+          }
+
+          console.log(`✨ Rendering highlight ${idx}: left=${left.toFixed(2)}, top=${top.toFixed(2)}, width=${width.toFixed(2)}, height=${height.toFixed(2)}`);
+
+          return (
+            <div
+              key={`hl-${docId}-${pageNum}-${idx}`}
+              style={{
+                position: "absolute",
+                left,
+                top,
+                width,
+                height,
+                backgroundColor: "rgba(142, 43, 254, 0.27)",
+                pointerEvents: "none",
+              }}
+            />
+          );
+        })
+        .filter(Boolean);
+
+      // Add debug rectangle showing the raw bbox region
+      return [
+        <div
+          key={`debug-bbox-${docId}-${pageNum}`}
+          style={{
+            position: "absolute",
+            left: 0,
+            top: y0_dom,
+            width: viewportWidth,
+            height: y1_dom - y0_dom,
+            border: "2px dashed red",
+            backgroundColor: "rgba(255, 0, 0, 0.1)",
+            pointerEvents: "none",
+          }}
+          title={`Debug bbox: top=${y0_dom.toFixed(2)}, height=${(y1_dom - y0_dom).toFixed(2)}`}
+        />,
+        ...highlights,
+      ];
+    },
+    [charBoxes, withinBBox, mergeBoxesIntoLines, yFlipNeeded]
+  );
 
   // const renderPageHighlight = (docId, pageNum, logicalRange) => {
   //   const pageData = charBoxes?.[docId]?.[pageNum];
@@ -743,19 +835,20 @@ const PDFViewerPage = memo(() => {
                                 key={doc.id}
                                 doc={doc}
                                 isVisible={index === activeTabIndex}
-                                // isResizing={isResizing}
+                                isResizing={isResizing}
                                 pdfWidth={800}
                                 docState={documentStates[doc.id] || {}}
-                                // charBoxes={charBoxes}
+                                charBoxes={charBoxes}
                                 pendingAction={pendingScrollActions[doc.id]}
                                 onDocumentLoadSuccess={onDocumentLoadSuccess}
-                                // handleGetCharBoxes={handleGetCharBoxes}
-                                // renderBoundingHighlights={
-                                //   renderBoundingHighlights
-                                // }
+                                handleGetCharBoxes={handleGetCharBoxes}
+                                renderBoundingHighlights={
+                                  renderBoundingHighlights
+                                }
                                 setPendingScrollActions={
                                   setPendingScrollActions
                                 }
+                                activeChunk={activeChunk}
                               />
                             ))}
                           </div>

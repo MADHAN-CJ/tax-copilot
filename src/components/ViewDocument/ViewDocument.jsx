@@ -5,15 +5,16 @@ const DocumentViewer = memo(
   ({
     doc,
     isVisible,
-    isResizing,
     pdfWidth,
     docState,
-    // charBoxes,
+    charBoxes,
+    isResizing,
     pendingAction,
     onDocumentLoadSuccess,
     setPendingScrollActions,
-    // handleGetCharBoxes,
-    // renderBoundingHighlights,
+    handleGetCharBoxes,
+    renderBoundingHighlights,
+    activeChunk,
   }) => {
     const pages = useMemo(() => {
       if (!docState.numPages) return null;
@@ -43,33 +44,35 @@ const DocumentViewer = memo(
                 }
                 renderTextLayer={false}
                 renderAnnotationLayer={false}
-                // onLoadSuccess={(page) =>
-                //   handleGetCharBoxes(
-                //     doc.id,
-                //     page,
-                //     pageNumber,
-                //     pdfWidth / page.getViewport({ scale: 1 }).width
-                //   )
-                // }
+                onLoadSuccess={(page) =>
+                  handleGetCharBoxes(
+                    doc.id,
+                    page,
+                    pageNumber,
+                    pdfWidth / page.getViewport({ scale: 1 }).width
+                  )
+                }
               />
-              {/* <div
-                style={{
-                  position: "absolute",
-                  left: 0,
-                  top: 0,
-                  right: 0,
-                  bottom: 0,
-                  pointerEvents: "none",
-                  zIndex: 3,
-                }}
-              >
-                {renderBoundingHighlights(doc.id, pageNumber, charBoxes)}
-              </div> */}
+              {activeChunk?.page_bboxes && (
+                <div
+                  style={{
+                    position: "absolute",
+                    left: 0,
+                    top: 0,
+                    right: 0,
+                    bottom: 0,
+                    pointerEvents: "none",
+                    zIndex: 3,
+                  }}
+                >
+                  {renderBoundingHighlights(doc.id, pageNumber, activeChunk.page_bboxes)}
+                </div>
+              )}
             </div>
           </div>
         );
       });
-    }, [doc.id, docState.numPages, pdfWidth]);
+    }, [doc.id, docState.numPages, pdfWidth, activeChunk, handleGetCharBoxes, renderBoundingHighlights]);
 
     return (
       <div
