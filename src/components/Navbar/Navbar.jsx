@@ -4,7 +4,7 @@ import { StylesLandingPageHeader } from "../LandingPage/styles";
 //images
 import Logo from "../../assets/images/logo.png";
 import CallIcon from "../../assets/images/call-help-icon.svg";
-import NotificationIcon from "../../assets/images/notification.svg";
+// import NotificationIcon from "../../assets/images/notification.svg";
 //utils
 import { onClickBounceEffect } from "../../utils/utils";
 //contexts
@@ -87,10 +87,10 @@ const Navbar = () => {
           Book a Call to Shape TaxAI
         </button>
 
-        <button className="help-button">
+        {/* <button className="help-button">
           <img src={NotificationIcon} alt="notify" />
           Notify Me When Coverage Expands
-        </button>
+        </button> */}
       </div>
     </StylesLandingPageHeader>
   );
