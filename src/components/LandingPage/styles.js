@@ -520,3 +520,24 @@ export const StylesLandingPageBottomLeft = styled.div`
     margin-bottom: 12px;
   }
 `;
+
+export const StylesChunksDetails = styled.div`
+  display: flex;
+  padding: 9px 14px;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  border-radius: 10px;
+  background: #333234;
+
+  p {
+    color: #fff;
+    font-family: "DM Mono";
+    font-size: 14px;
+    font-style: normal;
+    font-weight: 500;
+    line-height: 26px;
+    letter-spacing: -0.28px;
+  }
+`;

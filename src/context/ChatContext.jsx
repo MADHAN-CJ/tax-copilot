@@ -170,6 +170,7 @@ export const ChatProvider = ({ children }) => {
                 type: "ai",
                 content: m.content,
                 chunks: m.chunks || [],
+                final_used_chunks: m.final_used_chunks || [],
                 isLoader: false,
               };
             }
@@ -269,6 +270,7 @@ export const ChatProvider = ({ children }) => {
               type: "ai",
               content: msg.message.generated_answer,
               chunks: msg.message?.chunks || [],
+              final_used_chunks: msg.message?.final_used_chunks || [],
             },
           ]);
         }
@@ -277,6 +279,7 @@ export const ChatProvider = ({ children }) => {
           type: "ai",
           content: msg.message?.generated_answer,
           chunks: msg.message?.chunks || [],
+          final_used_chunks: msg.message?.final_used_chunks || [],
         });
       } else if (typeof msg.message === "string") {
         replaceLoader(loaderId, {

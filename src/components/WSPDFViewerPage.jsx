@@ -1,13 +1,14 @@
 import { useState, useEffect, useCallback, useRef, memo } from "react";
 import { useNavigate } from "react-router";
 //third party libraries
-import { ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { pdfjs } from "react-pdf";
 import { motion } from "framer-motion";
 //hooks
 import { useWebSocket } from "../hooks/useWebSocket";
 //styles
 import {
+  StylesChunksDetails,
   StylesLandingPageBottomLeft,
   StylesSearchContainerWrapper,
 } from "./LandingPage/styles";
@@ -17,7 +18,7 @@ import LoadingBanner from "../assets/images/loadingBanner.png";
 import Bullet from "../assets/images/bullet.svg";
 import ComingSoon from "../assets/images/coming-soon.svg";
 //components
-import { Button } from "./ui/button";
+// import { Button } from "./ui/button";
 import Navbar from "./Navbar/Navbar";
 import SidebarComponent from "./Sidebar/Sidebar";
 import DocumentViewer from "./ViewDocument/ViewDocument";
@@ -147,58 +148,58 @@ const PDFViewerPage = memo(() => {
   );
 
   // Handle reference button click
-  const handleReferenceClick = useCallback(
-    (chunk) => {
-      const targetPage = Math.floor(chunk.page_start);
-      // Find the document that contains this chunk
-      const targetDocIndex = activeDocuments.findIndex(
-        (doc) => doc.name === chunk.source
-      );
+  // const handleReferenceClick = useCallback(
+  //   (chunk) => {
+  //     const targetPage = Math.floor(chunk.page_start);
+  //     // Find the document that contains this chunk
+  //     const targetDocIndex = activeDocuments.findIndex(
+  //       (doc) => doc.name === chunk.source
+  //     );
 
-      if (targetDocIndex !== -1) {
-        const targetDoc = activeDocuments[targetDocIndex];
+  //     if (targetDocIndex !== -1) {
+  //       const targetDoc = activeDocuments[targetDocIndex];
 
-        // If switching to a different tab
-        if (targetDocIndex !== activeTabIndex) {
-          // Check if target document is already loaded
-          const docState = documentStates[targetDoc.id];
-          if (docState && docState.isLoaded) {
-            // Document is loaded, switch tab and scroll immediately
-            setActiveTabIndex(targetDocIndex);
-            setTimeout(() => {
-              scrollToPageForDocument(
-                targetDoc.id,
-                targetPage,
-                setDocumentStates
-              );
-            }, 100);
-          } else {
-            // Document not loaded yet, set pending action
-            setPendingScrollActions((prev) => ({
-              ...prev,
-              [targetDoc.id]: { targetPage },
-            }));
-            setActiveTabIndex(targetDocIndex);
-          }
-        } else {
-          // Same tab, just scroll
-          scrollToPageForDocument(targetDoc.id, targetPage, setDocumentStates);
-        }
-      } else {
-        // Fallback to current document
-        scrollToPage(targetPage);
-      }
-    },
-    [
-      activeDocuments,
-      activeTabIndex,
-      scrollToPageForDocument,
-      setDocumentStates,
-      documentStates,
-      scrollToPage,
-      setActiveTabIndex,
-    ]
-  );
+  //       // If switching to a different tab
+  //       if (targetDocIndex !== activeTabIndex) {
+  //         // Check if target document is already loaded
+  //         const docState = documentStates[targetDoc.id];
+  //         if (docState && docState.isLoaded) {
+  //           // Document is loaded, switch tab and scroll immediately
+  //           setActiveTabIndex(targetDocIndex);
+  //           setTimeout(() => {
+  //             scrollToPageForDocument(
+  //               targetDoc.id,
+  //               targetPage,
+  //               setDocumentStates
+  //             );
+  //           }, 100);
+  //         } else {
+  //           // Document not loaded yet, set pending action
+  //           setPendingScrollActions((prev) => ({
+  //             ...prev,
+  //             [targetDoc.id]: { targetPage },
+  //           }));
+  //           setActiveTabIndex(targetDocIndex);
+  //         }
+  //       } else {
+  //         // Same tab, just scroll
+  //         scrollToPageForDocument(targetDoc.id, targetPage, setDocumentStates);
+  //       }
+  //     } else {
+  //       // Fallback to current document
+  //       scrollToPage(targetPage);
+  //     }
+  //   },
+  //   [
+  //     activeDocuments,
+  //     activeTabIndex,
+  //     scrollToPageForDocument,
+  //     setDocumentStates,
+  //     documentStates,
+  //     scrollToPage,
+  //     setActiveTabIndex,
+  //   ]
+  // );
 
   // PDF handlers for each document - memoized to prevent re-renders
   const onDocumentLoadSuccess = useCallback(
@@ -393,7 +394,6 @@ const PDFViewerPage = memo(() => {
     const allReferences = messages
       .filter((m) => m.type === "ai" && Array.isArray(m.chunks))
       .flatMap((m) => m.chunks);
-    console.log(allReferences);
     setReferences(allReferences);
   }, [messages]);
 
@@ -683,7 +683,6 @@ const PDFViewerPage = memo(() => {
   useEffect(() => {
     loopLoaderTexts();
   }, [isLoading, loopLoaderTexts]);
-
   return (
     <div className="h-screen bg-[#151415]  flex flex-col overflow-hidden">
       <Navbar />
@@ -942,49 +941,65 @@ const PDFViewerPage = memo(() => {
                             </div>
                           ) : message?.type === "ai" ? (
                             <div className="flex justify-start">
-                              <div className="text-white border-b border-[#333234] mt-[10px] pb-[10px]  overflow-hidden">
-                                <p className="text-sm leading-relaxed break-word whitespace-pre-wrap">
+                              <div className="text-white  mt-[10px] pb-[10px]  overflow-hidden">
+                                <div className="text-sm leading-relaxed break-word whitespace-pre-wrap">
                                   {message?.font === "italic" ? (
                                     <i>{message?.content}</i>
                                   ) : (
-                                    message.content
+                                    <p className="border-b border-[#333234] pb-3">
+                                      {message.content}
+                                    </p>
                                   )}
-                                </p>
-                                {message?.chunks &&
-                                  message?.chunks?.length > 0 && (
+                                </div>
+                                {message.final_used_chunks &&
+                                  message.final_used_chunks?.length > 0 && (
                                     <div className="mt-4 space-y-2">
-                                      <h4 className="text-xs font-medium text-gray-600 uppercase tracking-wider">
+                                      {/* <h4 className="text-xs font-medium text-gray-600 uppercase tracking-wider">
                                         References
+                                      </h4> */}
+                                      <h4 className="text-[17px] font-medium">
+                                        {/* {message?.chunks[0].source
+                                          .replace(".pdf", "")
+                                          .replace(/-/g, " ")} */}
+                                        Income-tax Act, 1961 (as amended by
+                                        Finance Act, 2025)
                                       </h4>
                                       <div className="flex flex-wrap gap-2">
-                                        {message.chunks.map(
-                                          (chunk, chunkIndex) => (
-                                            <Button
-                                              key={chunkIndex}
-                                              variant="outline"
-                                              size="sm"
-                                              className="text-xs h-6 px-2 border-[#333234] text-white "
-                                              onClick={() =>
-                                                handleReferenceClick(chunk)
-                                              }
-                                              title={`${
-                                                chunk.source
-                                              } - Page ${Math.floor(
-                                                chunk.page_start
-                                              )}`}
-                                            >
-                                              <ExternalLink className="w-3 h-3 mr-1" />
-                                              {chunk.source?.length < 30
-                                                ? chunk.source.replace(
-                                                    ".pdf",
-                                                    ""
-                                                  )
-                                                : chunk.source.slice(0, 27) +
-                                                  "..."}
-                                              p.
-                                              {Math.floor(chunk.page_start)}
-                                            </Button>
-                                          )
+                                        {message?.final_used_chunks.map(
+                                          (chunk, chunkIndex) => {
+                                            return (
+                                              // <Button
+                                              //   key={chunkIndex}
+                                              //   variant="outline"
+                                              //   size="sm"
+                                              //   className="text-xs h-6 px-2 border-[#333234] text-white "
+                                              //   onClick={() =>
+                                              //     handleReferenceClick(chunk)
+                                              //   }
+                                              //   title={`${
+                                              //     chunk.source
+                                              //   } - Page ${Math.floor(
+                                              //     chunk.page_start
+                                              //   )}`}
+                                              // >
+                                              //   <ExternalLink className="w-3 h-3 mr-1" />
+                                              //   {chunk.source?.length < 30
+                                              //     ? chunk.source.replace(
+                                              //         ".pdf",
+                                              //         ""
+                                              //       )
+                                              //     : chunk.source.slice(0, 27) +
+                                              //       "..."}
+                                              //   p.
+                                              //   {Math.floor(chunk.page_start)}
+                                              // </Button>
+                                              <StylesChunksDetails
+                                                key={chunkIndex}
+                                              >
+                                                <p>SEC {chunk?.section}</p>
+                                              </StylesChunksDetails>
+                                            );
+                                          }
                                         )}
                                       </div>
                                     </div>
@@ -1019,7 +1034,7 @@ const PDFViewerPage = memo(() => {
                           className="search-container"
                         >
                           <textarea
-                            placeholder="Start typing..."
+                            placeholder="What is this document?"
                             value={inputMessage}
                             onChange={(e) => setInputMessage(e.target.value)}
                             onKeyDown={handleInputKeyDown}
