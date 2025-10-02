@@ -530,6 +530,7 @@ export const StylesChunksDetails = styled.div`
   gap: 10px;
   border-radius: 10px;
   background: #333234;
+  cursor: pointer;
 
   p {
     color: #fff;

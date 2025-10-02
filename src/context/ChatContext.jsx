@@ -273,6 +273,13 @@ export const ChatProvider = ({ children }) => {
               final_used_chunks: msg.message?.final_used_chunks || [],
             },
           ]);
+
+          localStorage.setItem(
+            `finalChunks-${msg.threadId}`,
+            JSON.stringify({
+              final_used_chunks: msg.message?.final_used_chunks || [],
+            })
+          );
         }
 
         replaceLoader(loaderId, {

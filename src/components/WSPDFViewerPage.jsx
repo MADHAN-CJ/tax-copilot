@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, memo } from "react";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 //third party libraries
-import { ChevronDown, ChevronUp } from "lucide-react";
+// import { ChevronDown, ChevronUp } from "lucide-react";
 import { pdfjs } from "react-pdf";
 import { motion } from "framer-motion";
 //hooks
@@ -46,6 +46,7 @@ const loadingTexts = [
 //PDFViewerPage component
 const PDFViewerPage = memo(() => {
   const navigate = useNavigate();
+  const location = useLocation();
 
   // PDF state
   const [sidebarWidth, setSidebarWidth] = useState("40");
@@ -55,6 +56,18 @@ const PDFViewerPage = memo(() => {
   const [pendingScrollActions, setPendingScrollActions] = useState({});
   const [currentText, setCurrentText] = useState(loadingTexts[0]);
   const [references, setReferences] = useState([]);
+  const [finalChunks, setFinalChunks] = useState([]);
+
+  //get the final chunks using threadId from local storage
+  // Extract threadId manually from the path `/c/:threadId`
+  const threadId = location.pathname.startsWith("/c/")
+    ? location.pathname.split("/c/")[1]?.split("/")[0] || null
+    : null;
+  useEffect(() => {
+    const finalChunksData =
+      JSON.parse(localStorage.getItem(`finalChunks-${threadId}`)) || [];
+    setFinalChunks(finalChunksData);
+  }, [threadId]);
   //highlight state
   // const [charBoxes, setCharBoxes] = useState({
   //   x0: 44.9999885559082,
@@ -148,58 +161,58 @@ const PDFViewerPage = memo(() => {
   );
 
   // Handle reference button click
-  // const handleReferenceClick = useCallback(
-  //   (chunk) => {
-  //     const targetPage = Math.floor(chunk.page_start);
-  //     // Find the document that contains this chunk
-  //     const targetDocIndex = activeDocuments.findIndex(
-  //       (doc) => doc.name === chunk.source
-  //     );
+  const handleReferenceClick = useCallback(
+    (chunk) => {
+      const targetPage = Math.floor(chunk.page_start);
+      // Find the document that contains this chunk
+      const targetDocIndex = activeDocuments.findIndex(
+        (doc) => doc.name === chunk.source
+      );
 
-  //     if (targetDocIndex !== -1) {
-  //       const targetDoc = activeDocuments[targetDocIndex];
+      if (targetDocIndex !== -1) {
+        const targetDoc = activeDocuments[targetDocIndex];
 
-  //       // If switching to a different tab
-  //       if (targetDocIndex !== activeTabIndex) {
-  //         // Check if target document is already loaded
-  //         const docState = documentStates[targetDoc.id];
-  //         if (docState && docState.isLoaded) {
-  //           // Document is loaded, switch tab and scroll immediately
-  //           setActiveTabIndex(targetDocIndex);
-  //           setTimeout(() => {
-  //             scrollToPageForDocument(
-  //               targetDoc.id,
-  //               targetPage,
-  //               setDocumentStates
-  //             );
-  //           }, 100);
-  //         } else {
-  //           // Document not loaded yet, set pending action
-  //           setPendingScrollActions((prev) => ({
-  //             ...prev,
-  //             [targetDoc.id]: { targetPage },
-  //           }));
-  //           setActiveTabIndex(targetDocIndex);
-  //         }
-  //       } else {
-  //         // Same tab, just scroll
-  //         scrollToPageForDocument(targetDoc.id, targetPage, setDocumentStates);
-  //       }
-  //     } else {
-  //       // Fallback to current document
-  //       scrollToPage(targetPage);
-  //     }
-  //   },
-  //   [
-  //     activeDocuments,
-  //     activeTabIndex,
-  //     scrollToPageForDocument,
-  //     setDocumentStates,
-  //     documentStates,
-  //     scrollToPage,
-  //     setActiveTabIndex,
-  //   ]
-  // );
+        // If switching to a different tab
+        if (targetDocIndex !== activeTabIndex) {
+          // Check if target document is already loaded
+          const docState = documentStates[targetDoc.id];
+          if (docState && docState.isLoaded) {
+            // Document is loaded, switch tab and scroll immediately
+            setActiveTabIndex(targetDocIndex);
+            setTimeout(() => {
+              scrollToPageForDocument(
+                targetDoc.id,
+                targetPage,
+                setDocumentStates
+              );
+            }, 100);
+          } else {
+            // Document not loaded yet, set pending action
+            setPendingScrollActions((prev) => ({
+              ...prev,
+              [targetDoc.id]: { targetPage },
+            }));
+            setActiveTabIndex(targetDocIndex);
+          }
+        } else {
+          // Same tab, just scroll
+          scrollToPageForDocument(targetDoc.id, targetPage, setDocumentStates);
+        }
+      } else {
+        // Fallback to current document
+        scrollToPage(targetPage);
+      }
+    },
+    [
+      activeDocuments,
+      activeTabIndex,
+      scrollToPageForDocument,
+      setDocumentStates,
+      documentStates,
+      scrollToPage,
+      setActiveTabIndex,
+    ]
+  );
 
   // PDF handlers for each document - memoized to prevent re-renders
   const onDocumentLoadSuccess = useCallback(
@@ -231,26 +244,26 @@ const PDFViewerPage = memo(() => {
     [pendingScrollActions, scrollToPageForDocument]
   );
 
-  const goToPage = useCallback(
-    (page) => {
-      scrollToPage(page);
-    },
-    [scrollToPage]
-  );
+  // const goToPage = useCallback(
+  //   (page) => {
+  //     scrollToPage(page);
+  //   },
+  //   [scrollToPage]
+  // );
 
   // Get current document state
-  const getCurrentDocumentState = useCallback(() => {
-    const currentDoc = getCurrentDocument();
-    if (!currentDoc)
-      return { currentPageInView: 1, pageNumber: 1, numPages: null };
-    return (
-      documentStates[currentDoc.id] || {
-        currentPageInView: 1,
-        pageNumber: 1,
-        numPages: null,
-      }
-    );
-  }, [documentStates, getCurrentDocument]);
+  // const getCurrentDocumentState = useCallback(() => {
+  //   const currentDoc = getCurrentDocument();
+  //   if (!currentDoc)
+  //     return { currentPageInView: 1, pageNumber: 1, numPages: null };
+  //   return (
+  //     documentStates[currentDoc.id] || {
+  //       currentPageInView: 1,
+  //       pageNumber: 1,
+  //       numPages: null,
+  //     }
+  //   );
+  // }, [documentStates, getCurrentDocument]);
 
   // handle mouse down
   const handleMouseDown = () => {
@@ -683,6 +696,7 @@ const PDFViewerPage = memo(() => {
   useEffect(() => {
     loopLoaderTexts();
   }, [isLoading, loopLoaderTexts]);
+
   return (
     <div className="h-screen bg-[#151415]  flex flex-col overflow-hidden">
       <Navbar />
@@ -759,7 +773,7 @@ const PDFViewerPage = memo(() => {
                       </div>
                     </div>
                   )}
-                  <div className=" px-6 py-4 flex items-center gap-6 bg-[#333234] flex-shrink-0 mx-[20px] rounded-t">
+                  {/* <div className=" px-6 py-4 flex items-center gap-6 bg-[#333234] flex-shrink-0 mx-[20px] rounded-t">
                     <div className="flex items-center gap-2">
                       <ChevronUp
                         className="w-4 h-4 text-white cursor-pointer hover:text-gray-700"
@@ -769,7 +783,7 @@ const PDFViewerPage = memo(() => {
                           )
                         }
                       />
-                      <span className="text-sm font-medium text-white min-w-[20px] text-center">
+                      <span className="text-sm font-medium text-white min-w-[30px] text-center">
                         {getCurrentDocumentState().currentPageInView}
                       </span>
                       <span className="text-sm text-white">/</span>
@@ -785,7 +799,7 @@ const PDFViewerPage = memo(() => {
                         }
                       />
                     </div>
-                  </div>
+                  </div> */}
                   {activeDocuments.length > 0 && (
                     <div
                       className="flex-1 bg-[#1C1B1D] overflow-hidden p-4 pdf-container mx-[20px]  custom-scrollbar-pdf"
@@ -952,49 +966,77 @@ const PDFViewerPage = memo(() => {
                                   )}
                                 </div>
                                 {message.final_used_chunks &&
-                                  message.final_used_chunks?.length > 0 && (
-                                    <div className="mt-4 space-y-2">
-                                      {/* <h4 className="text-xs font-medium text-gray-600 uppercase tracking-wider">
+                                message.final_used_chunks?.length > 0 ? (
+                                  <div className="mt-4 space-y-2">
+                                    {/* <h4 className="text-xs font-medium text-gray-600 uppercase tracking-wider">
                                         References
                                       </h4> */}
-                                      <h4 className="text-[17px] font-medium">
-                                        {/* {message?.chunks[0].source
+                                    <h4 className="text-[17px] font-medium">
+                                      {/* {message?.chunks[0].source
                                           .replace(".pdf", "")
                                           .replace(/-/g, " ")} */}
+                                      Income-tax Act, 1961 (as amended by
+                                      Finance Act, 2025)
+                                    </h4>
+                                    <div className="flex flex-wrap gap-2">
+                                      {message?.final_used_chunks.map(
+                                        (chunk, chunkIndex) => {
+                                          return (
+                                            // <Button
+                                            //   key={chunkIndex}
+                                            //   variant="outline"
+                                            //   size="sm"
+                                            //   className="text-xs h-6 px-2 border-[#333234] text-white "
+                                            //   onClick={() =>
+                                            //     handleReferenceClick(chunk)
+                                            //   }
+                                            //   title={`${
+                                            //     chunk.source
+                                            //   } - Page ${Math.floor(
+                                            //     chunk.page_start
+                                            //   )}`}
+                                            // >
+                                            //   <ExternalLink className="w-3 h-3 mr-1" />
+                                            //   {chunk.source?.length < 30
+                                            //     ? chunk.source.replace(
+                                            //         ".pdf",
+                                            //         ""
+                                            //       )
+                                            //     : chunk.source.slice(0, 27) +
+                                            //       "..."}
+                                            //   p.
+                                            //   {Math.floor(chunk.page_start)}
+                                            // </Button>
+                                            <StylesChunksDetails
+                                              key={chunkIndex}
+                                              onClick={() =>
+                                                handleReferenceClick(chunk)
+                                              }
+                                            >
+                                              <p>SEC {chunk?.section}</p>
+                                            </StylesChunksDetails>
+                                          );
+                                        }
+                                      )}
+                                    </div>
+                                  </div>
+                                ) : (
+                                  finalChunks.final_used_chunks &&
+                                  finalChunks.final_used_chunks?.length > 0 && (
+                                    <div className="mt-4 space-y-2">
+                                      <h4 className="text-[17px] font-medium">
                                         Income-tax Act, 1961 (as amended by
                                         Finance Act, 2025)
                                       </h4>
                                       <div className="flex flex-wrap gap-2">
-                                        {message?.final_used_chunks.map(
+                                        {finalChunks?.final_used_chunks.map(
                                           (chunk, chunkIndex) => {
                                             return (
-                                              // <Button
-                                              //   key={chunkIndex}
-                                              //   variant="outline"
-                                              //   size="sm"
-                                              //   className="text-xs h-6 px-2 border-[#333234] text-white "
-                                              //   onClick={() =>
-                                              //     handleReferenceClick(chunk)
-                                              //   }
-                                              //   title={`${
-                                              //     chunk.source
-                                              //   } - Page ${Math.floor(
-                                              //     chunk.page_start
-                                              //   )}`}
-                                              // >
-                                              //   <ExternalLink className="w-3 h-3 mr-1" />
-                                              //   {chunk.source?.length < 30
-                                              //     ? chunk.source.replace(
-                                              //         ".pdf",
-                                              //         ""
-                                              //       )
-                                              //     : chunk.source.slice(0, 27) +
-                                              //       "..."}
-                                              //   p.
-                                              //   {Math.floor(chunk.page_start)}
-                                              // </Button>
                                               <StylesChunksDetails
                                                 key={chunkIndex}
+                                                onClick={() =>
+                                                  handleReferenceClick(chunk)
+                                                }
                                               >
                                                 <p>SEC {chunk?.section}</p>
                                               </StylesChunksDetails>
@@ -1003,7 +1045,8 @@ const PDFViewerPage = memo(() => {
                                         )}
                                       </div>
                                     </div>
-                                  )}
+                                  )
+                                )}
                               </div>
                             </div>
                           ) : null}
