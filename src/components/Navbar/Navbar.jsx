@@ -4,7 +4,7 @@ import { StylesLandingPageHeader } from "../LandingPage/styles";
 //images
 import Logo from "../../assets/images/logo.png";
 import CallIcon from "../../assets/images/call-help-icon.svg";
-// import NotificationIcon from "../../assets/images/notification.svg";
+import NotificationIcon from "../../assets/images/notification.svg";
 //utils
 import { onClickBounceEffect } from "../../utils/utils";
 //contexts
@@ -30,6 +30,10 @@ const Navbar = () => {
   //handle help link
   const handleBookACall = () => {
     window.open("https://calendly.com/sahil-revise/30min-meeting", "_blank");
+  };
+
+  const handleNotify = () => {
+    window.open("https://tax.revise.network/#signup", "_blank");
   };
   return (
     <StylesLandingPageHeader>
@@ -87,10 +91,10 @@ const Navbar = () => {
           Book a Call to Shape TaxAI
         </button>
 
-        {/* <button className="help-button">
+        <button className="help-button" onClick={handleNotify}>
           <img src={NotificationIcon} alt="notify" />
           Notify Me When Coverage Expands
-        </button> */}
+        </button>
       </div>
     </StylesLandingPageHeader>
   );
