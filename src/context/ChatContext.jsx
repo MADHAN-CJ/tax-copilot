@@ -128,7 +128,7 @@ export const ChatProvider = ({ children }) => {
     }
 
     // Handle restored conversation from refresh
-    if (msg?.type === "response_message") {
+    if (msg?.type === "response_message" && threadId) {
       if (Array.isArray(msg.data) && msg.data.length > 0) {
         //clear messages and docs
         setMessages([]);
@@ -210,9 +210,7 @@ export const ChatProvider = ({ children }) => {
       if (location.pathname === "/") {
         navigate(`/c/${msg.threadId}`);
       }
-      if (threadId !== msg?.threadId) {
-        getUserTokenUsage();
-      }
+      getUserTokenUsage();
       const loaderId = `${msg.threadId}-ack`;
       addLoader(loaderId, "⌛ Starting analysis...");
       replaceLoader(loaderId, {
@@ -276,12 +274,7 @@ export const ChatProvider = ({ children }) => {
             },
           ]);
 
-          localStorage.setItem(
-            `finalChunks-${msg.threadId}`,
-            JSON.stringify({
-              final_used_chunks: msg.message?.final_used_chunks || [],
-            })
-          );
+          getUserTokenUsage();
         }
 
         replaceLoader(loaderId, {

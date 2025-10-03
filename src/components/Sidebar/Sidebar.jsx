@@ -19,7 +19,7 @@ import SearchIcon from "../../assets/images/search-icon.svg";
 import NewChatButton from "../../assets/images/new-chat-button.svg";
 
 //total token count
-const totalTokenCount = "100000";
+const totalTokenCount = "5000";
 
 const SidebarComponent = () => {
   const navigate = useNavigate();
