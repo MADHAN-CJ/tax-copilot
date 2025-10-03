@@ -148,7 +148,6 @@ const DocumentViewer = memo((props) => {
       setTimeout(() => {
         const chunk = firstRef.final_used_chunks?.[0];
         if (!chunk || !chunk.bbox) {
-          console.warn("No chunk bbox for firstRef:", firstRef);
           return;
         }
 
@@ -170,7 +169,7 @@ const DocumentViewer = memo((props) => {
       onRegisterScrollTo(doc.id, scrollToPage);
     }
   }, [onRegisterScrollTo, doc?.id, scrollToPage]);
-  console.log(boundingBox);
+
   // Loading state while we don't know numPages
   if (!numPages) {
     return (
