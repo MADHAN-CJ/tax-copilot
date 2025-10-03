@@ -60,19 +60,14 @@ const PDFViewerPage = memo(() => {
 
   //get the final chunks using threadId from local storage
 
-  //highlight state - test reference data
-  const testReference = {
-    x0: 89.94003295898438,
-    y0: 496.7878723144531,
-    x1: 567.8385620117188,
-    y1: 552.0718383789062,
-    page_start: 2,
-    page_end: 2,
-  };
-
-
-  
-
+  const [boundingBox, setBoundingBox] = useState({
+    x0: 0,
+    x1: 0,
+    y0: 0,
+    y1: 0,
+    page_start: 0,
+    page_end: 0,
+  });
   const [charBoxes, setCharBoxes] = useState({});
   const [yFlipNeeded, setYFlipNeeded] = useState({});
 
@@ -162,9 +157,19 @@ const PDFViewerPage = memo(() => {
     [getCurrentDocument, scrollToPageForDocument]
   );
 
-  // Handle reference button click
+  // Handle go to particular section reference button click
   const handleReferenceClick = useCallback(
     (chunk) => {
+      if (chunk) {
+        setBoundingBox({
+          x0: chunk?.bbox[0],
+          y0: chunk?.bbox[1],
+          x1: chunk?.bbox[2],
+          y1: chunk?.bbox[3],
+          page_start: chunk.page_start,
+          page_end: chunk.page_end,
+        });
+      }
       const targetPage = Math.floor(chunk.page_start);
       // Find the document that contains this chunk
       const targetDocIndex = activeDocuments.findIndex(
@@ -439,16 +444,6 @@ const PDFViewerPage = memo(() => {
       const viewport = page.getViewport({ scale });
       const originalViewport = page.getViewport({ scale: 1 });
 
-      if (pageNum === 2) {
-        console.log('PDF original dimensions:', {
-          width: originalViewport.width,
-          height: originalViewport.height,
-          scaledWidth: viewport.width,
-          scaledHeight: viewport.height,
-          scale
-        });
-      }
-
       if (!yFlipNeeded?.[docId]?.[pageNum]) {
         detectYDirection(docId, pageNum);
       }
@@ -564,7 +559,8 @@ const PDFViewerPage = memo(() => {
       if (!pageData) return null;
 
       const { x0, y0, x1, y1, page_start, page_end } = logicalRange;
-      const { viewportWidth, viewportHeight, originalWidth, originalHeight } = pageData;
+      const { viewportWidth, viewportHeight, originalWidth, originalHeight } =
+        pageData;
 
       // Scale reference coordinates to match char box viewport
       // Use actual PDF dimensions, not assumed standard sizes
@@ -612,8 +608,6 @@ const PDFViewerPage = memo(() => {
         lastLineY = Math.max(...lineBoxes.map((b) => b.lineY));
       }
 
-
-
       return lineBoxes
         .map((line, idx) => {
           let { left, top, width, height, lineY } = line;
@@ -638,7 +632,7 @@ const PDFViewerPage = memo(() => {
           ) {
             const cutoff = Math.min(left + width, x1_scaled);
             width = cutoff - left;
-            console.log('After right clip:', { left, width });
+            // console.log("After right clip:", { left, width });
             if (width <= 0) return null;
           }
 
@@ -722,9 +716,36 @@ const PDFViewerPage = memo(() => {
     return () => clearInterval(interval);
   }, []);
 
+  //call the loop loader text function
   useEffect(() => {
     loopLoaderTexts();
   }, [isLoading, loopLoaderTexts]);
+
+  // get the first final chunk  of the type ai message
+  const getFirstFinalChunkBBox = useCallback(() => {
+    const filteredData = messages.filter((d) => d.type === "ai");
+
+    if (!filteredData.length || !filteredData[0].final_used_chunks?.length)
+      return;
+
+    const firstChunk = filteredData[0].final_used_chunks[0];
+    const newBox = {
+      x0: firstChunk.bbox[0],
+      x1: firstChunk.bbox[1],
+      y0: firstChunk.bbox[2],
+      y1: firstChunk.bbox[3],
+      page_start: firstChunk.page_start,
+      page_end: firstChunk.page_end,
+    };
+
+    setBoundingBox((prev) =>
+      JSON.stringify(prev) === JSON.stringify(newBox) ? prev : newBox
+    );
+  }, [messages]);
+
+  useEffect(() => {
+    getFirstFinalChunkBBox();
+  }, [getFirstFinalChunkBBox]);
 
   return (
     <div className="h-screen bg-[#151415]  flex flex-col overflow-hidden">
@@ -851,7 +872,7 @@ const PDFViewerPage = memo(() => {
                                 pendingAction={pendingScrollActions[doc.id]}
                                 onDocumentLoadSuccess={onDocumentLoadSuccess}
                                 handleGetCharBoxes={handleGetCharBoxes}
-                                charBoxes={testReference}
+                                charBoxes={boundingBox}
                                 renderBoundingHighlights={
                                   renderBoundingHighlights
                                 }
@@ -948,6 +969,14 @@ const PDFViewerPage = memo(() => {
                 <div className="flex-1 p-6 overflow-y-auto overflow-x-hidden pb-[120px] custom-scrollbar">
                   <div className="space-y-4 ">
                     {messages?.map((message, index) => {
+                      // setBoundingBox({
+                      //   x0: message.final_used_chunks[0].bbox[0],
+                      //   y0: message.final_used_chunks[0].bbox[1],
+                      //   x1: message.final_used_chunks[0].bbox[2],
+                      //   y1: message.final_used_chunks[0].bbox[3],
+                      //   page_start: message.final_used_chunks.page_start,
+                      //   page_end: message.final_used_chunks.page_end,
+                      // });
                       return (
                         <div key={index} className="space-y-4">
                           {message.isLoader ? (
@@ -1021,31 +1050,6 @@ const PDFViewerPage = memo(() => {
                                         {message?.final_used_chunks.map(
                                           (chunk, chunkIndex) => {
                                             return (
-                                              // <Button
-                                              //   key={chunkIndex}
-                                              //   variant="outline"
-                                              //   size="sm"
-                                              //   className="text-xs h-6 px-2 border-[#333234] text-white "
-                                              //   onClick={() =>
-                                              //     handleReferenceClick(chunk)
-                                              //   }
-                                              //   title={`${
-                                              //     chunk.source
-                                              //   } - Page ${Math.floor(
-                                              //     chunk.page_start
-                                              //   )}`}
-                                              // >
-                                              //   <ExternalLink className="w-3 h-3 mr-1" />
-                                              //   {chunk.source?.length < 30
-                                              //     ? chunk.source.replace(
-                                              //         ".pdf",
-                                              //         ""
-                                              //       )
-                                              //     : chunk.source.slice(0, 27) +
-                                              //       "..."}
-                                              //   p.
-                                              //   {Math.floor(chunk.page_start)}
-                                              // </Button>
                                               <StylesChunksDetails
                                                 key={chunkIndex}
                                                 onClick={() =>
