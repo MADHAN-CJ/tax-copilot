@@ -60,14 +60,7 @@ const PDFViewerPage = memo(() => {
 
   //get the final chunks using threadId from local storage
 
-  const [boundingBox, setBoundingBox] = useState({
-    x0: 0,
-    x1: 0,
-    y0: 0,
-    y1: 0,
-    page_start: 0,
-    page_end: 0,
-  });
+  const [boundingBox, setBoundingBox] = useState({});
   const [charBoxes, setCharBoxes] = useState({});
   const [yFlipNeeded, setYFlipNeeded] = useState({});
 
@@ -554,11 +547,14 @@ const PDFViewerPage = memo(() => {
 
   // Render highlights given a logical bbox
   const renderBoundingHighlights = useCallback(
-    (docId, pageNum, logicalRange) => {
+    (docId, pageNum, boundingBox) => {
+      if (!boundingBox) return null;
+      if (pageNum < boundingBox.page_start || pageNum > boundingBox.page_end)
+        return null;
       const pageData = charBoxes?.[docId]?.[pageNum];
       if (!pageData) return null;
 
-      const { x0, y0, x1, y1, page_start, page_end } = logicalRange;
+      const { x0, y0, x1, y1, page_start, page_end } = boundingBox;
       const { viewportWidth, viewportHeight, originalWidth, originalHeight } =
         pageData;
 
@@ -731,8 +727,8 @@ const PDFViewerPage = memo(() => {
     const firstChunk = filteredData[0].final_used_chunks[0];
     const newBox = {
       x0: firstChunk.bbox[0],
-      x1: firstChunk.bbox[1],
-      y0: firstChunk.bbox[2],
+      y0: firstChunk.bbox[1],
+      x1: firstChunk.bbox[2],
       y1: firstChunk.bbox[3],
       page_start: firstChunk.page_start,
       page_end: firstChunk.page_end,
@@ -872,7 +868,8 @@ const PDFViewerPage = memo(() => {
                                 pendingAction={pendingScrollActions[doc.id]}
                                 onDocumentLoadSuccess={onDocumentLoadSuccess}
                                 handleGetCharBoxes={handleGetCharBoxes}
-                                charBoxes={boundingBox}
+                                boundingBox={boundingBox}
+                                setBoundingBox={setBoundingBox}
                                 renderBoundingHighlights={
                                   renderBoundingHighlights
                                 }

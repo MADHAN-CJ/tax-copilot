@@ -18,10 +18,11 @@ const DocumentViewer = memo((props) => {
     onDocumentLoadSuccess,
     setPendingScrollActions,
     onRegisterScrollTo,
-    charBoxes,
+    boundingBox,
     handleGetCharBoxes,
     renderBoundingHighlights,
     references,
+    setBoundingBox,
   } = props;
 
   //refs
@@ -144,16 +145,32 @@ const DocumentViewer = memo((props) => {
 
     setTimeout(() => {
       scrollToPage(targetPage);
+      setTimeout(() => {
+        const chunk = firstRef.final_used_chunks?.[0];
+        if (!chunk || !chunk.bbox) {
+          console.warn("No chunk bbox for firstRef:", firstRef);
+          return;
+        }
+
+        setBoundingBox({
+          x0: chunk.bbox[0],
+          y0: chunk.bbox[1],
+          x1: chunk.bbox[2],
+          y1: chunk.bbox[3],
+          page_start: firstRef.page_start,
+          page_end: firstRef.page_end,
+        });
+      }, 300);
       hasAutoScrolledRef.current = true;
     }, 200);
-  }, [references, numPages, scrollToPage]);
+  }, [references, numPages, scrollToPage, setBoundingBox]);
 
   useEffect(() => {
     if (onRegisterScrollTo && doc?.id) {
       onRegisterScrollTo(doc.id, scrollToPage);
     }
   }, [onRegisterScrollTo, doc?.id, scrollToPage]);
-
+  console.log(boundingBox);
   // Loading state while we don't know numPages
   if (!numPages) {
     return (
@@ -282,7 +299,11 @@ const DocumentViewer = memo((props) => {
                         zIndex: 3,
                       }}
                     >
-                      {renderBoundingHighlights(doc.id, pageNumber, charBoxes)}
+                      {renderBoundingHighlights(
+                        doc.id,
+                        pageNumber,
+                        boundingBox
+                      )}
                     </div>
                   </div>
                 </div>
