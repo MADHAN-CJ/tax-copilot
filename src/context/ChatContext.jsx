@@ -32,9 +32,11 @@ export const ChatProvider = ({ children }) => {
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [tokenExhaustedError, setTokenExhaustedError] = useState(false);
   //refs
   const lastAckId = useRef(null);
 
+  //loader and placeholder
   const addLoader = useCallback((id, content = "⏳ Processing...") => {
     setMessages((prev) => [
       ...prev,
@@ -304,6 +306,12 @@ export const ChatProvider = ({ children }) => {
         type: "error",
         content: msg.message || "Error: try again later.",
       });
+
+      if (msg.message === "Token Usage Limit Reached.") {
+        setTokenExhaustedError(true);
+      } else {
+        setTokenExhaustedError(false);
+      }
       return;
     }
   }, [
@@ -317,6 +325,7 @@ export const ChatProvider = ({ children }) => {
     setActiveTabIndex,
     getUserTokenUsage,
     threadId,
+    setTokenExhaustedError,
   ]);
 
   useEffect(() => {
@@ -343,6 +352,7 @@ export const ChatProvider = ({ children }) => {
         replaceLoader,
         handleLandingPageSendMessage,
         handleInputKeyDownOnLandingPage,
+        tokenExhaustedError,
       }}
     >
       {children}

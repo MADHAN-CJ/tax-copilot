@@ -37,6 +37,7 @@ export default function LandingPage() {
     handleLandingPageSendMessage,
     handleInputKeyDownOnLandingPage,
     setMessages,
+    tokenExhaustedError,
   } = useChatContext();
   const { isSidebarOpen } = useUIContext();
   const { setActiveDocuments, setActiveTabIndex } = useDocsContext();
@@ -82,7 +83,12 @@ export default function LandingPage() {
             >
               <SidebarComponent />
             </motion.aside>
-            <StylesLandingPageBodyWrapper $isSidebarOpen={isSidebarOpen}>
+            <StylesLandingPageBodyWrapper
+              $isSidebarOpen={isSidebarOpen}
+              $isButtonDisabled={
+                isLoading || !inputMessage.trim() || tokenExhaustedError
+              }
+            >
               <div className="section left-part">
                 <div className="left-part-header">
                   <div className="left-part-header-left"></div>
@@ -153,7 +159,11 @@ export default function LandingPage() {
                           <button
                             className="submit-button"
                             type="submit"
-                            disabled={isLoading || !inputMessage.trim()}
+                            disabled={
+                              isLoading ||
+                              !inputMessage.trim() ||
+                              tokenExhaustedError
+                            }
                           >
                             <img src={UpArrow} alt="Send" />
                           </button>
@@ -163,6 +173,11 @@ export default function LandingPage() {
                   </div>
                 </div>
               </div>
+              {tokenExhaustedError && (
+                <p className="bg-white text-red-600 px-3 py-1 rounded text-xs font-medium hover:bg-gray-200 fixed right-[20px]">
+                  Token Limit exhausted
+                </p>
+              )}
             </StylesLandingPageBodyWrapper>
           </StylesLandingPageWrapper>
         </motion.div>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, memo } from "react";
-import { useLocation, useNavigate } from "react-router";
+import { useNavigate } from "react-router";
 //third party libraries
 // import { ChevronDown, ChevronUp } from "lucide-react";
 import { pdfjs } from "react-pdf";
@@ -17,6 +17,8 @@ import UpArrow from "../assets/images/up-arrow.svg";
 import LoadingBanner from "../assets/images/loadingBanner.png";
 import Bullet from "../assets/images/bullet.svg";
 import ComingSoon from "../assets/images/coming-soon.svg";
+import NotificationIcon from "../assets/images/notification.svg";
+
 //components
 // import { Button } from "./ui/button";
 import Navbar from "./Navbar/Navbar";
@@ -46,7 +48,6 @@ const loadingTexts = [
 //PDFViewerPage component
 const PDFViewerPage = memo(() => {
   const navigate = useNavigate();
-  const location = useLocation();
 
   // PDF state
   const [sidebarWidth, setSidebarWidth] = useState("40");
@@ -56,18 +57,9 @@ const PDFViewerPage = memo(() => {
   const [pendingScrollActions, setPendingScrollActions] = useState({});
   const [currentText, setCurrentText] = useState(loadingTexts[0]);
   const [references, setReferences] = useState([]);
-  const [finalChunks, setFinalChunks] = useState([]);
 
   //get the final chunks using threadId from local storage
-  // Extract threadId manually from the path `/c/:threadId`
-  const threadId = location.pathname.startsWith("/c/")
-    ? location.pathname.split("/c/")[1]?.split("/")[0] || null
-    : null;
-  useEffect(() => {
-    const finalChunksData =
-      JSON.parse(localStorage.getItem(`finalChunks-${threadId}`)) || [];
-    setFinalChunks(finalChunksData);
-  }, [threadId]);
+
   //highlight state
   // const [charBoxes, setCharBoxes] = useState({
   //   x0: 44.9999885559082,
@@ -93,6 +85,7 @@ const PDFViewerPage = memo(() => {
     isLoading,
     messages,
     handleSendMessage,
+    tokenExhaustedError,
   } = useChatContext();
   const { isSidebarOpen } = useUIContext();
   const {
@@ -101,6 +94,11 @@ const PDFViewerPage = memo(() => {
     setActiveTabIndex,
     activeTabIndex,
   } = useDocsContext();
+
+  //handle notify button
+  const handleNotify = () => {
+    window.open("https://tax.revise.network/#signup", "_blank");
+  };
 
   // WebSocket connection
   const { reconnect } = useWebSocket(
@@ -938,19 +936,30 @@ const PDFViewerPage = memo(() => {
                             <div className="flex justify-center">
                               <div className="bg-red-600 text-white rounded-md px-4 py-2 max-w-xs text-center">
                                 <p className="text-sm font-medium">
-                                  {message.message}
-                                  {JSON.stringify(message)}
+                                  {/* {message.message} */}
+                                  {JSON.stringify(message.content)}
                                 </p>
-                                <button
-                                  onClick={() => {
-                                    reconnect();
-                                    navigate("/");
-                                    window.location.reload();
-                                  }}
-                                  className="bg-white text-red-600 px-3 py-1 rounded text-xs font-medium hover:bg-gray-200 transition"
-                                >
-                                  Retry Connection
-                                </button>
+                                {message?.content ===
+                                "Token Usage Limit Reached." ? (
+                                  <button
+                                    onClick={handleNotify}
+                                    className="bg-white text-red-600 px-3 py-1 rounded text-xs font-medium hover:bg-gray-200 transition flex gap-1 items-center"
+                                  >
+                                    <img src={NotificationIcon} alt="notify" />
+                                    Notify Me When Coverage Expands
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={() => {
+                                      reconnect();
+                                      navigate("/");
+                                      window.location.reload();
+                                    }}
+                                    className="bg-white text-red-600 px-3 py-1 rounded text-xs font-medium hover:bg-gray-200 transition"
+                                  >
+                                    Retry Connection
+                                  </button>
+                                )}
                               </div>
                             </div>
                           ) : message?.type === "ai" ? (
@@ -966,72 +975,47 @@ const PDFViewerPage = memo(() => {
                                   )}
                                 </div>
                                 {message.final_used_chunks &&
-                                message.final_used_chunks?.length > 0 ? (
-                                  <div className="mt-4 space-y-2">
-                                    {/* <h4 className="text-xs font-medium text-gray-600 uppercase tracking-wider">
+                                  message.final_used_chunks?.length > 0 && (
+                                    <div className="mt-4 space-y-2">
+                                      {/* <h4 className="text-xs font-medium text-gray-600 uppercase tracking-wider">
                                         References
                                       </h4> */}
-                                    <h4 className="text-[17px] font-medium">
-                                      {/* {message?.chunks[0].source
+                                      <h4 className="text-[17px] font-medium">
+                                        {/* {message?.chunks[0].source
                                           .replace(".pdf", "")
                                           .replace(/-/g, " ")} */}
-                                      Income-tax Act, 1961 (as amended by
-                                      Finance Act, 2025)
-                                    </h4>
-                                    <div className="flex flex-wrap gap-2">
-                                      {message?.final_used_chunks.map(
-                                        (chunk, chunkIndex) => {
-                                          return (
-                                            // <Button
-                                            //   key={chunkIndex}
-                                            //   variant="outline"
-                                            //   size="sm"
-                                            //   className="text-xs h-6 px-2 border-[#333234] text-white "
-                                            //   onClick={() =>
-                                            //     handleReferenceClick(chunk)
-                                            //   }
-                                            //   title={`${
-                                            //     chunk.source
-                                            //   } - Page ${Math.floor(
-                                            //     chunk.page_start
-                                            //   )}`}
-                                            // >
-                                            //   <ExternalLink className="w-3 h-3 mr-1" />
-                                            //   {chunk.source?.length < 30
-                                            //     ? chunk.source.replace(
-                                            //         ".pdf",
-                                            //         ""
-                                            //       )
-                                            //     : chunk.source.slice(0, 27) +
-                                            //       "..."}
-                                            //   p.
-                                            //   {Math.floor(chunk.page_start)}
-                                            // </Button>
-                                            <StylesChunksDetails
-                                              key={chunkIndex}
-                                              onClick={() =>
-                                                handleReferenceClick(chunk)
-                                              }
-                                            >
-                                              <p>SEC {chunk?.section}</p>
-                                            </StylesChunksDetails>
-                                          );
-                                        }
-                                      )}
-                                    </div>
-                                  </div>
-                                ) : (
-                                  finalChunks.final_used_chunks &&
-                                  finalChunks.final_used_chunks?.length > 0 && (
-                                    <div className="mt-4 space-y-2">
-                                      <h4 className="text-[17px] font-medium">
                                         Income-tax Act, 1961 (as amended by
                                         Finance Act, 2025)
                                       </h4>
                                       <div className="flex flex-wrap gap-2">
-                                        {finalChunks?.final_used_chunks.map(
+                                        {message?.final_used_chunks.map(
                                           (chunk, chunkIndex) => {
                                             return (
+                                              // <Button
+                                              //   key={chunkIndex}
+                                              //   variant="outline"
+                                              //   size="sm"
+                                              //   className="text-xs h-6 px-2 border-[#333234] text-white "
+                                              //   onClick={() =>
+                                              //     handleReferenceClick(chunk)
+                                              //   }
+                                              //   title={`${
+                                              //     chunk.source
+                                              //   } - Page ${Math.floor(
+                                              //     chunk.page_start
+                                              //   )}`}
+                                              // >
+                                              //   <ExternalLink className="w-3 h-3 mr-1" />
+                                              //   {chunk.source?.length < 30
+                                              //     ? chunk.source.replace(
+                                              //         ".pdf",
+                                              //         ""
+                                              //       )
+                                              //     : chunk.source.slice(0, 27) +
+                                              //       "..."}
+                                              //   p.
+                                              //   {Math.floor(chunk.page_start)}
+                                              // </Button>
                                               <StylesChunksDetails
                                                 key={chunkIndex}
                                                 onClick={() =>
@@ -1045,8 +1029,7 @@ const PDFViewerPage = memo(() => {
                                         )}
                                       </div>
                                     </div>
-                                  )
-                                )}
+                                  )}
                               </div>
                             </div>
                           ) : null}
@@ -1067,7 +1050,11 @@ const PDFViewerPage = memo(() => {
                 </div>
                 <div className="pb-[20px] bg-[#1C1B1D] ">
                   <div className="flex gap-2 relative">
-                    <StylesSearchContainerWrapper>
+                    <StylesSearchContainerWrapper
+                      $isButtonDisabled={
+                        isLoading || !inputMessage.trim() || tokenExhaustedError
+                      }
+                    >
                       <div
                         className="right-part-bottom-section"
                         style={{ cursor: isLoading ? "not-allowed" : "auto" }}
@@ -1088,7 +1075,11 @@ const PDFViewerPage = memo(() => {
                             <button
                               className="submit-button"
                               type="button"
-                              disabled={isLoading || !inputMessage.trim()}
+                              disabled={
+                                isLoading ||
+                                !inputMessage.trim() ||
+                                tokenExhaustedError
+                              }
                               onClick={handleSendMessage}
                             >
                               <img src={UpArrow} alt="Send" />

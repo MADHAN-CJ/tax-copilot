@@ -8,11 +8,19 @@ import Banner from "./assets/images/landing-page-banner.png";
 import Logo from "./assets/images/logo.png";
 function App() {
   //detect mobile devices
+  useEffect(() => {
+    Object.keys(localStorage)
+      .filter((key) => key.startsWith("finalChunks-"))
+      .forEach((key) => localStorage.removeItem(key));
+  }, []);
+
+  //states
   const [isBlocked, setIsBlocked] = useState(false);
 
   useEffect(() => {
+    //clear the final chunks data from local storage
+
     const checkWidth = () => {
-      console.log("object");
       const isMobileUA =
         /iPhone|iPod|Android|webOS|BlackBerry|IEMobile|Opera Mini/i.test(
           navigator.userAgent

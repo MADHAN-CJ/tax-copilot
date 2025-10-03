@@ -257,11 +257,13 @@ export const StylesLandingPageBodyWrapper = styled.div`
               width: 32px;
               height: 32px;
               border-radius: 5px;
-              background: #8e2bfe;
+              background: ${({ $isButtonDisabled }) =>
+                $isButtonDisabled ? " #827F88" : " #8e2bfe"};
               display: flex;
               align-items: center;
               justify-content: center;
-              cursor: pointer;
+              cursor: ${({ $isButtonDisabled }) =>
+                $isButtonDisabled ? " not-allowed" : " pointer"};
             }
           }
         }
@@ -324,11 +326,13 @@ export const StylesSearchContainerWrapper = styled.div`
           width: 32px;
           height: 32px;
           border-radius: 5px;
-          background: #8e2bfe;
+          background: ${({ $isButtonDisabled }) =>
+            $isButtonDisabled ? " #827F88" : " #8e2bfe"};
           display: flex;
           align-items: center;
           justify-content: center;
-          cursor: pointer;
+          cursor: ${({ $isButtonDisabled }) =>
+            $isButtonDisabled ? " not-allowed" : " pointer"};
         }
       }
     }
