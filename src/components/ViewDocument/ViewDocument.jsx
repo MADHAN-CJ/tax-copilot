@@ -18,10 +18,9 @@ const DocumentViewer = memo((props) => {
     onDocumentLoadSuccess,
     setPendingScrollActions,
     onRegisterScrollTo,
-    // pdfWidth,
-    // charBoxes,
-    // handleGetCharBoxes,
-    // renderBoundingHighlights,
+    charBoxes,
+    handleGetCharBoxes,
+    renderBoundingHighlights,
     references,
   } = props;
 
@@ -263,16 +262,16 @@ const DocumentViewer = memo((props) => {
                           </div>
                         </div>
                       }
-                      // onLoadSuccess={(page) =>
-                      //   handleGetCharBoxes(
-                      //     doc.id,
-                      //     page,
-                      //     pageNumber,
-                      //     pdfWidth / page.getViewport({ scale: 1 }).width
-                      //   )
-                      // }
+                      onLoadSuccess={(page) =>
+                        handleGetCharBoxes(
+                          doc.id,
+                          page,
+                          pageNumber,
+                          PAGE_WIDTH / page.getViewport({ scale: 1 }).width
+                        )
+                      }
                     />
-                    {/* <div
+                    <div
                       style={{
                         position: "absolute",
                         left: 0,
@@ -284,7 +283,7 @@ const DocumentViewer = memo((props) => {
                       }}
                     >
                       {renderBoundingHighlights(doc.id, pageNumber, charBoxes)}
-                    </div> */}
+                    </div>
                   </div>
                 </div>
               );
