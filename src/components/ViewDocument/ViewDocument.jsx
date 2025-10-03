@@ -133,20 +133,16 @@ const DocumentViewer = memo((props) => {
 
   //autoscroll to 1st reference
   useEffect(() => {
-    if (!references || references.length === 0) return;
+    if (!references) return;
     if (numPages === 0) return;
     if (hasAutoScrolledRef.current) return;
-    // get the first reference (lowest page_start)
-    const firstRef = references.reduce((min, r) =>
-      r.page_start < min.page_start ? r : min
-    );
 
-    const targetPage = Math.floor(firstRef.page_start);
+    const targetPage = references[0]?.page_start || 10;
 
     setTimeout(() => {
       scrollToPage(targetPage);
       setTimeout(() => {
-        const chunk = firstRef.final_used_chunks?.[0];
+        const chunk = references[0]?.final_used_chunks?.[0];
         if (!chunk || !chunk.bbox) {
           return;
         }
@@ -156,8 +152,8 @@ const DocumentViewer = memo((props) => {
           y0: chunk.bbox[1],
           x1: chunk.bbox[2],
           y1: chunk.bbox[3],
-          page_start: firstRef.page_start,
-          page_end: firstRef.page_end,
+          page_start: references[0].page_start,
+          page_end: references[0].page_end,
         });
       }, 300);
       hasAutoScrolledRef.current = true;

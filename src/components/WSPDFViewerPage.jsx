@@ -405,8 +405,9 @@ const PDFViewerPage = memo(() => {
 
   useEffect(() => {
     const allReferences = messages
-      .filter((m) => m.type === "ai" && Array.isArray(m.chunks))
-      .flatMap((m) => m.chunks);
+      .filter((m) => m.type === "ai" && Array.isArray(m.final_used_chunks))
+      .flatMap((m) => m.final_used_chunks);
+
     setReferences(allReferences);
   }, [messages]);
 
@@ -877,9 +878,7 @@ const PDFViewerPage = memo(() => {
                                   setPendingScrollActions
                                 }
                                 onRegisterScrollTo={handleRegisterScrollTo}
-                                references={references.filter(
-                                  (r) => r.source === doc.name
-                                )}
+                                references={references}
                               />
                             ))}
                           </div>
